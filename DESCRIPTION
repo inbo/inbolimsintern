@@ -1,0 +1,31 @@
+Package: inbolimsintern
+Type: Package
+Title: FUNCTIONALITY EXTENSION OF THE INBO LIMS SYSTEM VIA R
+Version: 0.1.1
+Date: 2020-09-03
+Author: Pieter Verschelde
+Maintainer: Pieter Verschelde<pieter.verschelde@inbo.be>
+Description: Some utilities that expand the Lims program in INBO. The routines are called by the lims program itself. The target audience for this package is the LIMS server and the LIMS administrators.
+License: MIT + file LICENSE
+Depends: 
+    R (>= 3.3.0)
+Imports:
+    stats,
+    utils,
+    dplyr,
+    magrittr,
+    DBI,
+    odbc,
+    ggplot2,
+    zoo,
+    xtable,
+    tidyr,
+    rlang,
+    tibble,
+    purrr
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 2.1.0)
+RoxygenNote: 6.1.1
+Encoding: UTF-8
