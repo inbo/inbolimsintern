@@ -1,3 +1,7 @@
-^inbolimsintern\.Rproj$
+^.Rproj$
 ^\.Rproj\.user$
-^\inbolimsintern\_documentatie
+^\_informatie$
+^\inbolimsintern.Rproj$
+
+
+^.*\.Rproj$
