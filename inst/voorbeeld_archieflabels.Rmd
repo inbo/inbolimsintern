@@ -1,0 +1,129 @@
+---
+title: "Archieflabels"
+author: "Pieter"
+date: "10 mei 2019"
+output: html_document
+---
+
+# Manier van werken
+
+Voor voornamelijk het bodemarchief moeten labels afgedrukt worden voor op de staalpotjes, met behulp van de ZEBRA printer (nu: 10 mei 2019).
+Dit gebeurt via een Access rapport, en is een heel gedoe om van importsheet tot afdruk te gaan.
+Met dit script wordt dit vereenvoudigd, al zou een meer permanente oplossing met een andere rapporteringstool zeker geen slecht idee zijn.
+
+1. De laboverantwoordelijke (nu: Els) maakt een google sheet klaar met alle nodige informatie.
+Deze sheet bevat volgende kolommen in het tabblad *Labeldata*:
+    - YEAR
+    - SID	
+    - AID
+    - TYPONYM
+    - LB72X	
+    - LB72Y
+    - DATESURVEY
+    - DATELABANAL
+    - LABProject
+    - LabCode
+    - DEPTH
+    - STAALTYPE
+1. De URL van deze sheet wordt gekopieerd
+1. het .bat bestand wordt uitgevoerd in de commandoprompt (als het bestaat, anders moet het nog aangemaakt worden)
+1. De URL wordt erin geplakt wanneer de vraag zich stelt.
+1. Het R script zal de Access database juist zetten
+1. De laborant opent Access en print het rapport af.
+
+##Maken van het batchbestand (enkel indien nodig)
+
+```{r batbestand}
+
+library(inbolims)
+
+#onderstaand pad kan je zelf kiezen (gewoon tussen "" zetten)
+#hier wordt de meegeleverde db in het package verwezen
+#Zelf kies je sowieso best je eigen bestanden (bv db_locatie <- "c:/R/bestanden/mydb.accdb") of kopieer je de bestanden uit dit package
+mijn_directory <- "C:/ZEBRA/_AUTOMATISATIE"
+pkg_db_locatie <- system.file("extdata", "ArchiefLabelsDB.accdb", package = "inbolims")
+
+#indien nodig (eenmalig de eerste keer je het script gebruikt), 
+#kopieer bestand uit de library naar mijn directory
+file.copy(pkg_db_locatie, paste0(mijn_directory, "/ArchiefLabelsDB.accdb"))
+db_locatie <- paste0(mijn_directory, "/ArchiefLabelsDB.accdb")
+
+#Dit zou automatisch juist moeten staan
+R_locatie <- paste0(R.home(), "/bin/i386/Rscript.exe")
+
+#locatie van het uitvoerbaar .bat bestand
+bat_bestand <- paste0(mijn_directory, "/Archieflabels.bat")
+
+#Locatie script in de inbolims library
+pkg_Rscript <- system.file("extdata", "ArchiefLabels.R", package = "inbolims") 
+
+#eenmalig de eerste keer je het script gebruikt: maak een lokale kopie van het script
+file.copy(pkg_Rscript, paste0(mijn_directory, "/ArchiefLabels.R"))
+Rscript <- paste0(mijn_directory, "/ArchiefLabels.R")
+
+
+create_archief_labels_bat(bat_file = bat_bestand, 
+                          db_location =  db_locatie, 
+                          R_location = R_locatie, 
+                          Rscript_location = Rscript)
+
+```
+
+##Inhoud van het R script
+
+Het script werkt enkel in een 32-bit R omgeving, dus zorg dat je .bat bestand verwijst naar de locatie van een 32-bit R. Verder heb je de pakketten `googlesheets`, `tidyverse` en `RODBC`nodig.
+Als je beide bestanden aanmaakt (dus bovenstaande en onderstaande) zorg dat je naar hetzelfde bestand verwijst.
+
+Eens je de keuze gemaakt hebt waar je je R script wil laten lopen, dan voer je best eenmalig eens de google authentificatie uit voor deze directory.
+
+```{r gsauth}
+setwd(mijn_directory)
+library(googlesheets)
+gs_auth()
+```
+
+```{r maakRscript}
+cat('
+#Let op! Dit script werkt enkel in een 32-bit R omgeving indien 32-bit Access
+# wat het geval is op het INBO (10 mei 2019)
+argumenten <- commandArgs()
+google_url <- argumenten[[6]]
+db_location <- argumenten[[7]]
+
+library(googlesheets)
+library(tidyverse)
+library(RODBC) #werkt enkel in 32-bit R
+
+gs_auth() #Eenmalig per werkdirectory moet je google authoriseren
+
+#Haal de info op uit de google sheet
+key <- googlesheets::extract_key_from_url(google_url)
+ss <- gs_key(key)
+titel <- ss$sheet_title
+
+dfLabels <- 
+  googlesheets::gs_read_csv(ss, ws = "Labeldata") %>%
+  select( StaalType = STAALTYPE, YEAR, AID, SID, LB72X, LB72Y, DEPTH, 
+         LabProjectCode = LABProject, LabSampleCode = LabCode)
+
+#dus enkel in 32-bit R
+conn <- odbcConnectAccess2007(db_location)
+print(conn)
+sqlQuery(conn, paste0("drop table [" , titel, "]"))
+sqlSave(conn, dfLabels, tablename = titel, colnames = FALSE)
+sqlQuery(conn, "drop table tblTemp")
+sqlSave(conn, dfLabels, tablename = "tblTemp", colnames = FALSE)
+
+print("OK. Nu kan je in Access het rapport openen")
+
+odbcClose(conn)
+    ', 
+    file = Rscript) #Rscript uit vorige chunk
+
+```
+
+#Uitvoeren van het batch bestand
+
+Als alles correct verlopen is, dan kan je nu in je gekozen directory het gekozen .bat, .R en .accdb bestand terugvinden. Dubbelklikken op het .bat bestand zou nu het R script moeten runnen, waarbij onderweg gevraagd wordt om de url van de googlesheet te plakken in het commandovenster.
+
+

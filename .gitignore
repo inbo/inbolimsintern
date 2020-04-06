@@ -25,7 +25,7 @@ _NOT_GIT_/
 
 # Output files from R CMD check
 /*.Rcheck/
-inbolims/.Rbuildignore
+.Rbuildignore
 
 # RStudio files
 .Rproj.user/
@@ -33,7 +33,7 @@ inbolims/.Rbuildignore
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
-inbolims/inst/*.html
+inst/*.html
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
