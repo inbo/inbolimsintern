@@ -49,18 +49,29 @@ plate_read_dna_run <- function(conn, run){
    and r.STATUS not in ('X')
   order by pp.PLATE, pp.COLUMN_NUMBER, pp.Row_number,r.NAME")
 
-
   dfMD <-
     DBI::dbGetQuery(conn, qry2) %>%
     spread(key = .data$NAME, value = .data$ENTRY)
-  dfSamps <-
-    DBI::dbGetQuery(conn, qry1) %>%
-    left_join(dfMD, by = "SAMPLE_NUMBER") %>%
-    left_join(select(dfMD, .data$SAMPLE_NUMBER, DNApar = .data$DNA, MilliQpar = .data$MilliQ), by = c("PARENT_SAMPLE" = "SAMPLE_NUMBER")) %>%
-    mutate(MilliQ = as.numeric(ifelse(is.na(.data$MilliQ), .data$MilliQpar, .data$MilliQ)),
-           DNA = as.numeric(ifelse(is.na(.data$DNA), .data$DNApar, .data$DNA)),
-           SAMPLE_TYPE = ifelse(is.na(.data$SAMPLE_TYPE), "SAMPLE", .data$SAMPLE_TYPE)) %>%
-    select (-.data$MilliQpar, -.data$DNApar)
+
+  if (nrow(dfMD) > 0) {
+    print("DNA of MILLIQ gevonden")
+    dfSamps <-
+      DBI::dbGetQuery(conn, qry1) %>%
+      left_join(dfMD, by = "SAMPLE_NUMBER") %>%
+      left_join(select(dfMD, .data$SAMPLE_NUMBER, DNApar = .data$DNA, MilliQpar = .data$MilliQ),
+                by = c("PARENT_SAMPLE" = "SAMPLE_NUMBER")) %>%
+      mutate(MilliQ = as.numeric(ifelse(is.na(.data$MilliQ), .data$MilliQpar, .data$MilliQ)),
+             DNA = as.numeric(ifelse(is.na(.data$DNA), .data$DNApar, .data$DNA)),
+             SAMPLE_TYPE = ifelse(is.na(.data$SAMPLE_TYPE), "SAMPLE", .data$SAMPLE_TYPE)) %>%
+      select (-.data$MilliQpar, -.data$DNApar)
+  } else {
+    print("Geen DNA of MILLIQ gevonden")
+    dfSamps <- DBI::dbGetQuery(conn, qry1) %>%
+      mutate(DNA = NA,
+             MilliQ = NA,
+             SAMPLE_TYPE = ifelse(is.na(.data$SAMPLE_TYPE), "SAMPLE", .data$SAMPLE_TYPE))
+  }
+
 
   dna_milliq <- dfSamps %>% filter(.data$SAMPLE_TYPE == "QC_METHOD",  !is.na(.data$DNA),  !is.na(.data$MilliQ))
   if (nrow(dna_milliq) == 0) {

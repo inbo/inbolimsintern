@@ -61,7 +61,9 @@ plate_create_report <- function(data,  Capilar = LETTERS[1:8], Lane = 1:12){
 
     corresp <- data$PLATE_ID[data$PARENT_SAMPLE_BIS == tmp$PARENT_SAMPLE & !is.na(data$PARENT_SAMPLE)]
     corresp <- corresp[corresp != tmp$PLATE_ID]
-    if (length(corresp)) {
+#print(i)
+#print(corresp)
+    if (length(corresp) & !(all(is.na(corresp)))) {
          for (k in 1:max(4,length(corresp))) {
            dfResult[selectie[2 + k], "VALUE"] <- corresp[k]
          }

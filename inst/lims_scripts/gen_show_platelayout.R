@@ -12,7 +12,7 @@ library(DBI)
 logfile <- "D:\\LABO_FS\\LIMS\\LOGS\\platelayout_log.txt"
 sink(logfile)
 
-#args <- inbolimsintern::prepare_session(call_id = "505")
+#args <- inbolimsintern::prepare_session(call_id = "505") #505 515 516 518
 args <- inbolimsintern::prepare_session()
 conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
 params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
