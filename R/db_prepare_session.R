@@ -33,13 +33,9 @@ prepare_session <- function(args = commandArgs(), min_args = 5, first_arg = min_
     }
     argvec <- c(dsn = creds$dsn, uid = creds$uid,
                 pwd = creds$pwd, call_id = call_id)
-    print("h1")
-    print(argvec)
   } else {
     argvec <- c(dsn = args[min_args + 1], uid = args[min_args + 2],
                 pwd = args[min_args + 3], call_id = args[min_args + 4])
-    print("h2")
-    print(argvec)
   }
   argvec
 }

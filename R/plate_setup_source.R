@@ -9,30 +9,30 @@
 #' @importFrom tidyr spread
 #' @importFrom rlang .data
 #' @export
-gen_plate_setup_source <- function(data){
-  # 
-  # dfDesign <- 
+plate_setup_source <- function(data){
+  #
+  # dfDesign <-
   #   data %>%
-  #   dplyr::transmute(Replicate = .data$ID, 
+  #   dplyr::transmute(Replicate = .data$ID,
   #                    Specimen = as.character(ifelse(.data$Specimen == "leeg", NA, .data$Specimen)),
   #                    Plate = factor(.data$Plate, levels = sort(unique(.data$Plate))),
   #                    Plate_Seq = as.numeric(.data$Plate),
   #                    Capilar = LETTERS[.data$Capilar],
-  #                    .data$Lane, 
-  #                    SampleType = ifelse(is.na(.data$SampleType) | .data$SampleType == "", "N", 
-  #                                        as.character(.data$SampleType)), 
+  #                    .data$Lane,
+  #                    SampleType = ifelse(is.na(.data$SampleType) | .data$SampleType == "", "N",
+  #                                        as.character(.data$SampleType)),
   #                    .data$SampleNumber,
   #                    .data$MilliQ,
   #                    .data$DNA,
-  #                    .data$ParentSample, 
-  #                    .data$ParentAliquot, 
+  #                    .data$ParentSample,
+  #                    .data$ParentAliquot,
   #                    ParentAliquotBis = ifelse(.data$ParentAliquot == 0, .data$SampleNumber, .data$ParentAliquot),
   #                    Location = paste0(.data$Plate_Seq, .data$Capilar, .data$Lane)) %>%
   #   dplyr::arrange(.data$Plate, .data$Lane, .data$Capilar)
-  # 
+  #
   # allsamps <- dfDesign %>% select(.data$SampleNumber, .data$MilliQ, .data$DNA)
-  # 
-  # dfDesign <- 
+  #
+  # dfDesign <-
   #   bind_cols(
   #     select(dfDesign, -.data$MilliQ, -.data$DNA),
   #     dfDesign %>%
@@ -43,13 +43,13 @@ gen_plate_setup_source <- function(data){
   #           pid <- which(allsamps$SampleNumber == data$ParentAliquot)
   #           if (length(pid)) {
   #             mqparent <- allsamps[pid, "MilliQ"]
-  #             dnaparent <- allsamps[pid, "DNA"]  
+  #             dnaparent <- allsamps[pid, "DNA"]
   #             rv <- data.frame(MilliQ = mqparent, DNA = dnaparent)
   #           } else {
-  #             rv <- data.frame(MilliQ = .data$MilliQ, DNA = .data$DNA)        
+  #             rv <- data.frame(MilliQ = .data$MilliQ, DNA = .data$DNA)
   #           }
   #         } else {
-  #           rv <- data.frame(MilliQ = .data$MilliQ, DNA = .data$DNA)   
+  #           rv <- data.frame(MilliQ = .data$MilliQ, DNA = .data$DNA)
   #         }
   #         rv
   #       }))
