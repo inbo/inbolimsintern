@@ -4,8 +4,14 @@
 \alias{set_edna_plate_positions}
 \title{Data verder klaarzettten voor export naar lims platen}
 \usage{
-set_edna_plate_positions(data, n_plates, plate_size = 96,
-  column_size = 8, qcm_pos = 38, n_blank = 3)
+set_edna_plate_positions(
+  data,
+  n_plates,
+  plate_size = 96,
+  column_size = 8,
+  qcm_pos = 38,
+  n_blank = 3
+)
 }
 \arguments{
 \item{data}{dataset komende uit de functie get_edna_plate_data}

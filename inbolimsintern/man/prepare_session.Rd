@@ -4,9 +4,13 @@
 \alias{prepare_session}
 \title{Ophalen commando-argumenten}
 \usage{
-prepare_session(args = commandArgs(), min_args = 5,
-  first_arg = min_args, cred_file = "dbcredentials.txt",
-  call_id = NULL)
+prepare_session(
+  args = commandArgs(),
+  min_args = 5,
+  first_arg = min_args,
+  cred_file = "dbcredentials.txt",
+  call_id = NULL
+)
 }
 \arguments{
 \item{args}{de argumenten die meekomen bij het oproepen van het script (meestal commandArgs)}

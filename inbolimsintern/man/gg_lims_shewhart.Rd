@@ -4,8 +4,13 @@
 \alias{gg_lims_shewhart}
 \title{Shewhart plot}
 \usage{
-gg_lims_shewhart(plotdata, red_rules = 1:2, orange_rules = 3:6,
-  yellow_rules = 7:8, ...)
+gg_lims_shewhart(
+  plotdata,
+  red_rules = 1:2,
+  orange_rules = 3:6,
+  yellow_rules = 7:8,
+  ...
+)
 }
 \arguments{
 \item{plotdata}{a dataset typically obtained through the function lims_shewhart}

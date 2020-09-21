@@ -4,8 +4,13 @@
 \alias{limsdb_connect}
 \title{Title}
 \usage{
-limsdb_connect(server = "inbo-sql07-prd.inbo.be",
-  database = "D0015_00_Lims", uid, pwd, connectlist = NULL)
+limsdb_connect(
+  server = "inbo-sql07-prd.inbo.be",
+  database = "D0015_00_Lims",
+  uid,
+  pwd,
+  connectlist = NULL
+)
 }
 \arguments{
 \item{server}{name of the LIMS server}

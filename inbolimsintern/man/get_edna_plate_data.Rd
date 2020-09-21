@@ -4,9 +4,16 @@
 \alias{get_edna_plate_data}
 \title{Zet projectstalen klaar voor op de plaat}
 \usage{
-get_edna_plate_data(data, rep_fractie = 0.1, plate_size = 96,
-  column_size = 8, n_qcm = 1, n_blank = 3, max_reps = 2,
-  min_filled = 24)
+get_edna_plate_data(
+  data,
+  rep_fractie = 0.1,
+  plate_size = 96,
+  column_size = 8,
+  n_qcm = 1,
+  n_blank = 3,
+  max_reps = 2,
+  min_filled = 24
+)
 }
 \arguments{
 \item{data}{datset met projectstalen. Bevat minstens de kolom DNA_ID, DNA_RUN_ID, SAMPLE_NUMBER, REP_SAMPLE_NUMBER}

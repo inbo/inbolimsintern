@@ -4,8 +4,7 @@
 \alias{lims_shewhart_rules}
 \title{Wrapper function that calculates all 8 Shewhart rules for lab results}
 \usage{
-lims_shewhart_rules(x, center, sd, runs = c(1, 9, 6, 14, 3, 5, 15, 8),
-  ...)
+lims_shewhart_rules(x, center, sd, runs = c(1, 9, 6, 14, 3, 5, 15, 8), ...)
 }
 \arguments{
 \item{x}{numeric vector of lab results}
