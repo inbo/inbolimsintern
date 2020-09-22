@@ -11,11 +11,11 @@
 #' @export
 #'
 batch_parse_xls_tripledash <- function(
-  file = inputfile,
-  sheet = sheet,
-  cell = cell,
-  maxcol = maxcol,
-  user = userName)
+  file,
+  sheet = "LIMSIMPORT",
+  cell = "B1",
+  maxcol = 0,
+  user = "TEST")
 {
 
 }

@@ -4,13 +4,7 @@
 \alias{batch_parse_xls_default}
 \title{Parse default excel bestanden}
 \usage{
-batch_parse_xls_default(
-  file,
-  sheet = "LIMSIMPORT",
-  cell = "B1",
-  maxcol = 0,
-  user = ""
-)
+batch_parse_xls_default(file, sheet = "LIMSIMPORT", cell = "B1", user = "")
 }
 \arguments{
 \item{file}{file die geopend moet worden}
@@ -18,8 +12,6 @@ batch_parse_xls_default(
 \item{sheet}{het tabblad dat ingelezen moet worden}
 
 \item{cell}{de eerste cel die wordt ingelezen}
-
-\item{maxcol}{het maximaal aantal kolommen die gebruikt wordt}
 
 \item{user}{gebruikersnaam die de opdracht heeft gegeven}
 }

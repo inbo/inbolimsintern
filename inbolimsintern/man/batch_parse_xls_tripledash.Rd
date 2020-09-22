@@ -5,11 +5,11 @@
 \title{Lees file in waarbij stalen met: text_id---testnummer worden gebruikt}
 \usage{
 batch_parse_xls_tripledash(
-  file = inputfile,
-  sheet = sheet,
-  cell = cell,
-  maxcol = maxcol,
-  user = userName
+  file,
+  sheet = "LIMSIMPORT",
+  cell = "B1",
+  maxcol = 0,
+  user = "TEST"
 )
 }
 \arguments{
