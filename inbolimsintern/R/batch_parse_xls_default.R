@@ -15,17 +15,21 @@ batch_parse_xls_default <- function(file,
                                     cell = "B1",
                                     user = "")
 {
+  print("in batch_parse_xls_default")
   errormessage = " "
   data <- readxl::read_excel(path = file,
                              sheet = sheet,
                              range = paste(cell, "AZ10000", sep = ":")) %>%
     mutate(`...` = NA)
+  print("after xlread")
   data <- select(data, 1:(starts_with("..")[1]-1))
   data <- data[which(!is.na(as.numeric(data[[1]]))), drop = FALSE]
   data <- data %>% arrange_at(1)
+  print("before gathering")
   gathered_data <- data %>%
     tidyr::gather(key = "CName", value = "Value", -(1:3)) %>%
     arrange_at(1)
+  print("finished batch_parse_xls_default")
   gathered_data
 }
 

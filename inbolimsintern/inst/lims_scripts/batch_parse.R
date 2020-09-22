@@ -4,11 +4,14 @@
 
 
 ### >>> Configure R session
+try(sink(file = "log_parser.txt"))
 
 library(dplyr) #nodig voor de bewerkingen
 library(inbolimsintern) #bevat de parse functies
 library(readxl) #nodig om excel files in te lezen
 library(readr) #nodig om text bestanden in te lezen
+
+print("libs gelezen")
 
 #args <- inbolimsintern::prepare_session(call_id = 627) #als test
 args <- inbolimsintern::prepare_session()
@@ -21,6 +24,8 @@ params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 # params <- data.frame(ARG_NAME = c(...),
 #                      VALUE = c(...)
 
+print("args gelezen")
+
 userName = params$VALUE[params$ARG_NAME == "USER"]
 inputfile = params$VALUE[params$ARG_NAME == "INPUTFILE"]
 outputdir = params$VALUE[params$ARG_NAME == "OUTPUTDIR"]
@@ -30,9 +35,12 @@ cell = params$VALUE[params$ARG_NAME == "CELL"]
 maxcol = as.numeric(params$VALUE[params$ARG_NAME == "MAXCOL"])
 split <- 200
 
+print("klaar voor openen file")
+
 ### >>> FIND FILES AND PARSE THEM IN AN OBJECT
 
 if (filetype == "xls_default") {
+  print("type xls_default")
   import_data <- inbolimsintern::batch_parse_xls_default(
     file = inputfile,
     sheet = sheet,
@@ -41,23 +49,29 @@ if (filetype == "xls_default") {
     user = userName)
 } else {
   if (filetype == "xls---") {
+    print("type xls---")
     import_data <- inbolimsintern::batch_parse_xls_tripledash(
       file = inputfile,
       sheet = sheet,
       cell = cell,
       maxcol = maxcol,
       user = userName)
+  } else {
+    print("niet gekend type")
   }
 }
 
 ### >>> PLACE PARSED FILES IN C_RESULT_IMPORT IN LIMS DB
 
+print("check batch")
+
 first_test_number <- as.numeric(import_data[1,2])
 q <- paste0("select top(10) b.NAME, b.TEMPLATE, b.OWNER from batch b inner join batch_objects bo on b.NAME = bo.BATCH",
-           " where bo.OBJECT_ID = ", first_test_number)
+            " where bo.OBJECT_ID = ", first_test_number)
 
 conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
 batch_info <- DBI::dbGetQuery(conn, q)
+print(batch_info)
 
 batchName <- batch_info$NAME[1]
 if (!length(userName)) userName <- "TEST"
@@ -73,6 +87,7 @@ data_for_db <- import_data %>%
          DATE_PLACED = timestamp,
          IMPORTED = "F")
 
+print("klaar voor insert statements")
 conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
 for (i in 1:nrow(data_for_db)) {
   qry <-  "insert into C_RESULT_IMPORT (BATCH, [USER], TEXT_ID, SAMPLE_NUMBER, TEST_NUMBER, COMPONENT, ENTRY, DATE_PLACED, IMPORTED) VALUES ("
@@ -80,33 +95,14 @@ for (i in 1:nrow(data_for_db)) {
                 "'", data_for_db$BATCH[i],    "'",       ", ",
                 "'", userName,                "'",       ", ",
                 "'", data_for_db$TEXT_ID[i],  "'",       ", ",
-                     data_for_db$SAMPLE_NUMBER[i],        ", ",
-                     data_for_db$TEST_NUMBER[i],         ", ",
+                data_for_db$SAMPLE_NUMBER[i],        ", ",
+                data_for_db$TEST_NUMBER[i],         ", ",
                 "'", data_for_db$COMPONENT[i], "'",      ", ",
                 "'", data_for_db$ENTRY[i],     "'",      ", ",
                 "'", timestamp,                "'",      ", ",
                 "'", "F",                      "'", ")")
   DBI::dbGetQuery(conn, qry)
 }
-
-
-
-
-
-#DBI::dbAppendTable(conn, "C_RESULT_IMPORT", data_for_db)
-
-#
-#
-# for (i in 1:nrow(import_data)) {
-#   textID <- import_data[i,3]
-#   sampleNumber <- import_data[i,1]
-#   testNumber <- import_data[i,2]
-#   component <- import_data[i,4]
-#   value <- import_data[i,5]
-#   imported <- "F"
-#   qry <-  "insert into C_RESULT_IMPORT (BATCH, [USER], TEXT_ID, SAMPLE_NUMBER, TEST_NUMBER, COMPONENT, ENTRY, DATE_PLACED, IMPORTED) VALUES ("
-#   qry <- paste0(qry, "'", batchName, "', '",userName, "', '", textID, "', ", sampleNumber, ", ", testNumber, ", '", component, "', '", value, "', '", timestamp, "', '", imported, "', ", ")")
-# }
-#
-
+print("script afgelopen")
+sink()
 
