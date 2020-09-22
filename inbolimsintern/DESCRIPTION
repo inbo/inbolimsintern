@@ -1,7 +1,7 @@
 Package: inbolimsintern
 Type: Package
 Title: FUNCTIONALITY EXTENSION OF THE INBO LIMS SYSTEM VIA R
-Version: 0.1.1
+Version: 0.2.0
 Date: 2020-09-03
 Author: Pieter Verschelde
 Maintainer: Pieter Verschelde<pieter.verschelde@inbo.be>

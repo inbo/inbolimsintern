@@ -33,11 +33,21 @@ split <- 200
 ### >>> FIND FILES AND PARSE THEM IN AN OBJECT
 
 if (filetype == "xls_default") {
-  import_data <- inbolimsintern::batch_parse_xls_default(file = inputfile,
-                                                   sheet = sheet,
-                                                   cell = cell,
-                                                   maxcol = maxcol,
-                                                   user = userName)
+  import_data <- inbolimsintern::batch_parse_xls_default(
+    file = inputfile,
+    sheet = sheet,
+    cell = cell,
+    maxcol = maxcol,
+    user = userName)
+} else {
+  if (filetype == "xls---") {
+    import_data <- inbolimsintern::batch_parse_xls_tripledash(
+      file = inputfile,
+      sheet = sheet,
+      cell = cell,
+      maxcol = maxcol,
+      user = userName)
+  }
 }
 
 ### >>> PLACE PARSED FILES IN C_RESULT_IMPORT IN LIMS DB
