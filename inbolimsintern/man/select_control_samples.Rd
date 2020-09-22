@@ -4,8 +4,15 @@
 \alias{select_control_samples}
 \title{Selecteer de waarden die als basis voor de controlekaart dienen}
 \usage{
-select_control_samples(conn, num, batch, analysis, components,
-  start = "1900-01-01", end = "2200-01-01")
+select_control_samples(
+  conn,
+  num,
+  batch,
+  analysis,
+  components,
+  start = "1900-01-01",
+  end = "2200-01-01"
+)
 }
 \arguments{
 \item{conn}{db connection}

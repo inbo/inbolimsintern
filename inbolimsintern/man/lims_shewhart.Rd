@@ -11,8 +11,7 @@ lims_shewhart(x, ...)
 
 \method{lims_shewhart}{lims_data}(x, entrycol = "ENTRY", ...)
 
-\method{lims_shewhart}{default}(x, center = NULL, sd = NULL,
-  rules = lims_shewhart_rules, ...)
+\method{lims_shewhart}{default}(x, center = NULL, sd = NULL, rules = lims_shewhart_rules, ...)
 }
 \arguments{
 \item{x}{lims_data object containing all info to make a shewhart plot}

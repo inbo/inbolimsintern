@@ -4,8 +4,13 @@
 \alias{gen_seq_create_plates}
 \title{Plaatdata aanmaken voor sequentie-analyse.}
 \usage{
-gen_seq_create_plates(DNA, params, qcmpos = 37, blancpos = NULL,
-  platesize = 96)
+gen_seq_create_plates(
+  DNA,
+  params,
+  qcmpos = 37,
+  blancpos = NULL,
+  platesize = 96
+)
 }
 \arguments{
 \item{DNA}{dataset met DNA_RUN_ID (1 cijfer die voor dit project gelijk blijft), SAMPLE_NUMBER (de sample_numbers uit LIMS), SAMPLE_TYPE (N = normaal sample, Q = QCmethod)}

@@ -4,8 +4,11 @@
 \alias{convert_to_simple_ascii}
 \title{Remove special characters from string}
 \usage{
-convert_to_simple_ascii(x, keep_codes = c(38:128, 181),
-  replace = data.frame(181, 181))
+convert_to_simple_ascii(
+  x,
+  keep_codes = c(38:128, 181),
+  replace = data.frame(181, 181)
+)
 }
 \arguments{
 \item{x}{vector of strings containing special characters}

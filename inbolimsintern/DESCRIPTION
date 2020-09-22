@@ -1,7 +1,7 @@
 Package: inbolimsintern
 Type: Package
 Title: FUNCTIONALITY EXTENSION OF THE INBO LIMS SYSTEM VIA R
-Version: 0.1.1
+Version: 0.2.0
 Date: 2020-09-03
 Author: Pieter Verschelde
 Maintainer: Pieter Verschelde<pieter.verschelde@inbo.be>
@@ -22,10 +22,11 @@ Imports:
     tidyr,
     rlang,
     tibble,
-    purrr
+    purrr,
+    readxl
 Suggests:
     knitr,
     rmarkdown,
     testthat (>= 2.1.0)
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.1
 Encoding: UTF-8

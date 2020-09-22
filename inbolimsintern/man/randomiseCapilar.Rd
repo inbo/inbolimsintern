@@ -4,9 +4,18 @@
 \alias{randomiseCapilar}
 \title{Randomise specimens over different capilar AFLP plates.}
 \usage{
-randomiseCapilar(Specimens, Group, FirstLabID = 1, Prefix = "",
-  nCapilar = 8, nLines = 12, QC, rReplicates = 0.1,
-  minReplicates = 8, fillPlate = FALSE)
+randomiseCapilar(
+  Specimens,
+  Group,
+  FirstLabID = 1,
+  Prefix = "",
+  nCapilar = 8,
+  nLines = 12,
+  QC,
+  rReplicates = 0.1,
+  minReplicates = 8,
+  fillPlate = FALSE
+)
 }
 \arguments{
 \item{Specimens}{Either the number of specimens or a vector with the names of
