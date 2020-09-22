@@ -44,8 +44,6 @@ if (filetype == "xls_default") {
   import_data <- inbolimsintern::batch_parse_xls_default(
     file = inputfile,
     sheet = sheet,
-    cell = cell,
-    maxcol = maxcol,
     user = userName)
 } else {
   if (filetype == "xls---") {

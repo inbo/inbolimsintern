@@ -4,14 +4,12 @@
 \alias{batch_parse_xls_default}
 \title{Parse default excel bestanden}
 \usage{
-batch_parse_xls_default(file, sheet = "LIMSIMPORT", cell = "B1", user = "")
+batch_parse_xls_default(file, sheet = "LIMSIMPORT", user = "")
 }
 \arguments{
-\item{file}{file die geopend moet worden}
+\item{file}{die geopend moet worden}
 
 \item{sheet}{het tabblad dat ingelezen moet worden}
-
-\item{cell}{de eerste cel die wordt ingelezen}
 
 \item{user}{gebruikersnaam die de opdracht heeft gegeven}
 }
