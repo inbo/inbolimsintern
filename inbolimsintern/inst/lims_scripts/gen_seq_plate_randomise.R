@@ -6,24 +6,36 @@
 library(dplyr)
 library(inbolimsintern)
 
-#args <- inbolimsintern::prepare_session(call_id = 289)
-args <- inbolimsintern::prepare_session()
-conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 
+logfile <- logfile_start(prefix = "SEQUENTIE_RUN")
+call_id <- 0 #289
+
+try({
+  args <- inbolimsintern::prepare_session(call_id)
+  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
+  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
+}, outFile = logfile)
 
 ### >>> Lees data in
 
-DNA <- DBI::dbReadTable(conn = conn, name = "C_DNA_EXTRACTION")
+try({
+  DNA <- DBI::dbReadTable(conn = conn, name = "C_DNA_EXTRACTION")
+}, outFile = logfile)
+
 
 ### >>> Genereer de plaatdata
-
-dfPlates <- inbolimsintern::gen_seq_create_plates(DNA, params)
-
+try({
+  dfPlates <- inbolimsintern::gen_seq_create_plates(DNA, params)
+}, outFile = logfile)
 
 
 ### >>> Schrijf de data weg in de databank
 
-DBI::dbGetQuery(conn, "delete from C_DNA_EXTRACTION")
-DBI::dbWriteTable(conn, name = "C_DNA_EXTRACTION", value = dfPlates, overwrite = TRUE, append = FALSE)
-DBI::dbDisconnect(conn)
+try({
+  DBI::dbGetQuery(conn, "delete from C_DNA_EXTRACTION")
+  DBI::dbWriteTable(conn, name = "C_DNA_EXTRACTION", value = dfPlates, overwrite = TRUE, append = FALSE)
+  DBI::dbDisconnect(conn)
+}, outFile = logfile)
+
+close(logfile)
+
