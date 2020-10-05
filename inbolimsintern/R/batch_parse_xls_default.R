@@ -17,7 +17,6 @@ batch_parse_xls_default <- function(file,
   errormessage = " "
   print(file)
   print(sheet)
-  print(cell)
 
   data <- readxl::read_excel(path = file,
                              sheet = sheet) %>%

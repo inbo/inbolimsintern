@@ -5,14 +5,16 @@
 \title{Ophalen commando-argumenten}
 \usage{
 prepare_session(
+  call_id = NULL,
   args = commandArgs(),
   min_args = 5,
   first_arg = min_args,
-  cred_file = "dbcredentials.txt",
-  call_id = NULL
+  cred_file = "dbcredentials.txt"
 )
 }
 \arguments{
+\item{call_id}{het nummer waarmee de argumenten uit de lims databank kunnen opgehaald worden (tabel C_RSCRIPT_ARGS)}
+
 \item{args}{de argumenten die meekomen bij het oproepen van het script (meestal commandArgs)}
 
 \item{min_args}{minimum aantal argumenten om te checken of het een effectieve call is, of een test (bij een test werk je interactief en zijn er veel minder commandoargumenten)}
@@ -20,8 +22,6 @@ prepare_session(
 \item{first_arg}{de positie van het eerste argument (dit zal 5 of 6 zijn afh. van je R). Het eerste argument is het opgeroepen R script, daarna volgt normaal gezien de data-source, de user-name, het passwoord, en de call_id, die de extra benodigde argumenten voor het script ophaalt in de lims databank (tabel C_RSCRIPT_ARGS)}
 
 \item{cred_file}{de bestandsnaam (al dan niet met padverwijzing) van het 3 regels lange tekstbestand, waar de data-source, user-name en paswoord kunnen opgehaald worden in die volgorde. Dit is enkel relevant in testmodus, dus als er minder dan min_args argumenten zijn}
-
-\item{call_id}{het nummer waarmee de argumenten uit de lims databank kunnen opgehaald worden (tabel C_RSCRIPT_ARGS)}
 }
 \value{
 character vector waarbij de elementen met de naam dsn (data-source), uid (gebruikersnaam), pwd (paswoord), call_id (call identificatie) teruggegeven worden

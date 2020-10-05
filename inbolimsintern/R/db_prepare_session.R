@@ -20,16 +20,18 @@
 #' args <- prepare_session(call_id = 5, cred_file = cred_file)
 #' }
 
-prepare_session <- function(args = commandArgs(), min_args = 5, first_arg = min_args,
-                            cred_file = "dbcredentials.txt", call_id = NULL){
+prepare_session <- function(call_id = NULL, args = commandArgs(), min_args = 5, first_arg = min_args,
+                            cred_file = "dbcredentials.txt") {
+  #indien minder dan 5 argumenten, verwacht een call_id die opgegeven is, anders haal die uit de argumenten
   is_test <- ifelse(length(args) < min_args, TRUE, FALSE)
+  print(call_id)
   if (is_test) {
     creds <- try(inbolimsintern::read_db_credentials(cred_file))
     if (class(creds)[1] == "try-error") {
       stop("databasse info niet gevonden, zorg dat cred_file verwijst naar een bestaand bestand")
     }
     if (is.null(call_id)) {
-      stop("call_id moet een waarde hebben")
+      stop("call_id moet een waarde hebben (bij het testen)")
     }
     argvec <- c(dsn = creds$dsn, uid = creds$uid,
                 pwd = creds$pwd, call_id = call_id)
