@@ -1,20 +1,3 @@
-#' Haal de Rscript logdirectory uit de LIMS databank
-#'
-#' @param conn connectie naar de databank
-#'
-#' @return logdirectory (indien niet gevonden NULL)
-#' @importFrom DBI dbGetQuery
-# get_log_dir <- function(conn) {
-#   qry = "select CONSTANT_VALUE from lims_constants where NAME = 'RSCRIPT_LOG_DIR'"
-#   logdir <- try(DBI::dbGetQuery(conn, qry))
-#   if (class(logdir)[1] != "try-error") {
-#     logdir[1,1]
-#   }
-#   else
-#     getwd()
-# }
-
-#####################################################################################
 
 #' Make name of log file based on current datetime, directory, prefix and suffix
 #'

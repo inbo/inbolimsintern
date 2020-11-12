@@ -2,7 +2,7 @@
 % Please edit documentation in R/logfile_functions.R
 \name{logfile_start}
 \alias{logfile_start}
-\title{Haal de Rscript logdirectory uit de LIMS databank}
+\title{Make name of log file based on current datetime, directory, prefix and suffix}
 \usage{
 logfile_start(path = "<auto>", prefix = "", suffix = "")
 }
@@ -12,14 +12,10 @@ logfile_start(path = "<auto>", prefix = "", suffix = "")
 \item{prefix}{prefix to the file to make it recognisable}
 
 \item{suffix}{suffix tot the file to make it recognisable}
-
-\item{conn}{connectie naar de databank}
 }
 \value{
-logdirectory (indien niet gevonden NULL)
-
 file connection
 }
 \description{
-Haal de Rscript logdirectory uit de LIMS databank
+Make name of log file based on current datetime, directory, prefix and suffix
 }
