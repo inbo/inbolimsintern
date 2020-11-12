@@ -2,15 +2,20 @@
 % Please edit documentation in R/logfile_functions.R
 \name{logfile_start}
 \alias{logfile_start}
+<<<<<<< HEAD
 \title{Make name of log file based on current datetime, directory, prefix and suffix}
+=======
+\title{Creert logbestand (opent connectie)}
+>>>>>>> d798110a5b4d52f71d723703657283586349b6aa
 \usage{
 logfile_start(path = "<auto>", prefix = "", suffix = "")
 }
 \arguments{
-\item{path}{directory to write log file}
+\item{path}{directory waar de logfile wordt aangemaakt . <auto> gebruikt de default}
 
-\item{prefix}{prefix to the file to make it recognisable}
+\item{prefix}{vorvoegsel in de file, bijvoorbeeld welk script gebruikt werd}
 
+<<<<<<< HEAD
 \item{suffix}{suffix tot the file to make it recognisable}
 }
 \value{
@@ -18,4 +23,13 @@ file connection
 }
 \description{
 Make name of log file based on current datetime, directory, prefix and suffix
+=======
+\item{suffix}{suffix dat bijvoorbeeld een db id kan bevatten}
+}
+\value{
+file connectie
+}
+\description{
+Creert logbestand (opent connectie)
+>>>>>>> d798110a5b4d52f71d723703657283586349b6aa
 }
