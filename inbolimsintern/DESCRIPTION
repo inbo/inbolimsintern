@@ -23,7 +23,8 @@ Imports:
     rlang,
     tibble,
     purrr,
-    readxl
+    readxl,
+    readr
 Suggests:
     knitr,
     rmarkdown,
