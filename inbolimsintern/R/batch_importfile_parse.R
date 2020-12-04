@@ -65,7 +65,7 @@ get_data_from_importfile <- function(path, batch_info) {
   filename <- path
   extension <- get_file_extension(filename)
   if (extension %in% c("xls", "xlsx")) {
-    tabblad <- readxl::read_excel(filename, sheet = sheet, guess_max = 5000)
+    tabblad <- readxl::read_excel(filename, sheet = sheet, guess_max = 5000, col_names = FALSE)
     aantalNA <- apply(tabblad, 2, function(x) sum(!is.na(x)))
     first_empty <- which(aantalNA <= 1)
     first_col = which(toupper(substring(cell, 1, 1)) == LETTERS)
@@ -75,9 +75,9 @@ get_data_from_importfile <- function(path, batch_info) {
       tabblad <- tabblad[, first_col:(first_empty - 1), drop = FALSE]
     }
   } else if (extension %in% c("txt")) {
-    tabblad <- readr::read_tsv(filename, guess_max = 5000)
+    tabblad <- readr::read_tsv(filename, guess_max = 5000, col_names = FALSE)
   } else if (extension %in% c("csv")) {
-    tabblad <- readr::read_csv2(filename, guess_max = 5000)
+    tabblad <- readr::read_csv2(filename, guess_max = 5000, col_names = FALSE)
   } else {
     tabblad = NULL
   }
@@ -108,7 +108,7 @@ move_importfile <- function(data, source_path, source_file, batch_info, schedule
   movepath = paste(scheduler_base_dir, labo, template, file, sep = "\\")
   print(source)
   print(movepath)
-  res <- try(readr::write_tsv(data, path = movepath))
+  res <- try(readr::write_tsv(data, path = movepath, col_names = FALSE))
   print(res)
   if (class(res)[1] != "try-error") {
     file.rename(source, paste0(source_path, "\\_FINISHED\\", source_file))
