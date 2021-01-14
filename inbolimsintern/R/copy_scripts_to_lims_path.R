@@ -7,7 +7,7 @@
 #' @importFrom tools md5sum
 #' @return vector met status per bestand of het succesvol gekopieerd is. Zou allemaal TRUE moeten zijn
 #' @export
-copy_scripts_to_lims_path <- function(path){
+copy_scripts_to_lims_path <- function(path = "L:\\LabWare-7\\Data\\R_SCRIPTS"){
 
   #check dat het path niet met / of \ eindigt
   if (substring(path, nchar(path),  nchar(path)) %in% c("/", "\\")) {
@@ -22,7 +22,8 @@ copy_scripts_to_lims_path <- function(path){
   mdex <- tools::md5sum(existing)
   mdpkg <- tools::md5sum(packagefiles)
 
-  if (length(mdex) != length(mdpkg) && !all(mdex == mdpkg)) {
+  if (length(mdex) != length(mdpkg) | !all(mdex == mdpkg)) {
+    packageStartupMessage("refreshing LIMS_SCRIPTS because hash has changed")
     #maak backup directory
     now <- gsub(pattern = c(":"),
                 x = as.character(Sys.time()),

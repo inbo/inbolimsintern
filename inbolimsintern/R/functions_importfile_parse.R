@@ -5,8 +5,10 @@
 #' @return character string met de batch naam
 #' @export
 get_batchname_from_file <-  function(file) {
+  if (!is.character(file))
+    stop("bestandsnaam niet geldig")
   finddash <- regexpr("---", file)
-  if (finddash > 0) {
+  if (!is.na(finddash) && finddash > 0) {
     batch_name <- substring(file, 1, finddash-1)
   } else {
     warning("Batchnaam niet gevonden in de file, zorg dat de naam gevolgd wordt door ---")
@@ -95,7 +97,7 @@ get_data_from_importfile <- function(path, batch_info) {
 #' @importFrom readr write_tsv
 #' @return geen return, wel verplaatste bestanden
 #' @export
-move_importfile <- function(data, source_path, source_file, batch_info, scheduler_base_dir) {
+move_batch_importfile <- function(data, source_path, source_file, batch_info, scheduler_base_dir) {
   print(dim(data))
   if  (is.null(data)) {
     stop(paste("Geen data om te verplaatsen uit file", source))
@@ -116,6 +118,45 @@ move_importfile <- function(data, source_path, source_file, batch_info, schedule
   } else {
     print("file kon niet in juiste directory geschreven worden")
   }
+}
+
+#' Kopieer de data naar een tsv en verplaats de originele file
+#'
+#' @param data dataset die ingelezen is
+#' @param source_file het volledig path met bestandsnaam (nodig om te verplaatsen en de file naamgeving)
+#' @param target_location het volledig path naar de doeldirectory, ofwel "." voor op dezelfde plaats te blijven
+#' @param move_location het volledig  path naar de verplaatsdirectory, ofwel "_FINISHED" om relatief van de file in de _FINISHED directory te schrijven
+#' @importFrom readr write_tsv
+#' @return succes status
+#' @export
+#'
+process_file_generic <- function(data, source_file, target_location = ".", move_location = "_FINISHED") {
+  #scheid pad en file
+  end_slash <- max(c(gregexpr("\\\\", text = source_file)[[1]], gregexpr("/", text = source_file)[[1]]))
+  if (end_slash > 0) {
+    path <- substring(source_file, 1, end_slash)
+    file <- substring(source_file, end_slash + 1)
+  } else {
+    stop("source_file moet de volledige padverwijzing bevatten, geen / of \\ gevonden")
+  }
+
+  #schrijf data weg als tsv
+  target_file <- paste0(file, ".tsv")
+  if (target_location == ".") {
+    target_file <- file.path(path, paste0(file, ".csv"))
+  } else {
+    target_file <- file.path(target_location, paste0(file, ".csv"))
+  }
+  readr::write_tsv(data, path = target_file, col_names = TRUE)
+
+  #verplaats de originele file
+  if (move_location == "_FINISHED") {
+    move_path <- file.path(path, '_FINISHED')
+  } else {
+    move_path <- move_location
+  }
+  try(file.remove(file.path(move_location, file)))
+  file.rename(from = source_file, to = file.path(move_location, file))
 }
 
 #################################################################################################################

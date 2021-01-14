@@ -1,10 +1,10 @@
 Package: inbolimsintern
 Type: Package
 Title: FUNCTIONALITY EXTENSION OF THE INBO LIMS SYSTEM VIA R
-Version: 0.2.0
-Date: 2020-09-03
+Version: 0.2.1.0
+Date: 2021-01-14
 Author: Pieter Verschelde
-Maintainer: Pieter Verschelde<pieter.verschelde@inbo.be>
+Maintainer: Pieter Verschelde <pieter.verschelde@inbo.be>
 Description: Some utilities that expand the Lims program in INBO. The routines are called by the lims program itself. The target audience for this package is the LIMS server and the LIMS administrators.
 License: MIT + file LICENSE
 Depends: 

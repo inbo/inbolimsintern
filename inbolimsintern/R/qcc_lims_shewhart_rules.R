@@ -28,7 +28,7 @@ qcc_rule02 <- function(x, center, run = 9){
   } else {
     centered_x <- x - center
     base_data <- zoo::rollapply(centered_x, run, FUN = function(x)x, fill = c(NA, NA, NA), align = "right", partial = FALSE)
-    return(apply(base_data, 1, function(y) abs(sum(sign(y), na.rm = TRUE)) >= run))    
+    return(apply(base_data, 1, function(y) abs(sum(sign(y), na.rm = TRUE)) >= run))
   }
 }
 
@@ -44,7 +44,7 @@ qcc_rule03 <- function(x, run = 6){
     return(rep(FALSE, length(x)))
   } else {
     base_data <- zoo::rollapply(x, run + 1, FUN = function(x) x, fill = c(NA, NA, NA), align = "right", partial = FALSE)
-    return(apply(base_data, 1, function(y) abs(sum(sign(c(tail(y, -1) - head(y, -1))), na.rm = TRUE)) >= (run)))    
+    return(apply(base_data, 1, function(y) abs(sum(sign(c(tail(y, -1) - head(y, -1))), na.rm = TRUE)) >= (run)))
   }
 }
 
@@ -63,7 +63,7 @@ qcc_rule04 <- function(x, run = 14){
     apply(base_data, 1, FUN = function(z) {
       tmp <- sign(tail(z, -1) - head(z, -1))
       tmp[is.na(tmp)] <- 0
-      return(all(tmp == rep(c(-1,1),100)[1:run]) | (all(tmp == rep(c(1,-1),100)[1:run])))    
+      return(all(tmp == rep(c(-1,1),100)[1:run]) | (all(tmp == rep(c(1,-1),100)[1:run])))
     })
   }
 }
@@ -74,7 +74,7 @@ qcc_rule04 <- function(x, run = 14){
 #' @param lcl_2s 2-sigma lower limit
 #' @param ucl_2s 2-sigma upper limit
 #' @param run (run - 1) violations on run more than 2 sigma in the same direction
-#'
+#' @importFrom zoo rollapply
 #' @return TRUE if rule violated
 #' @export
 qcc_rule05 <- function(x, lcl_2s, ucl_2s, run = 3){
@@ -86,7 +86,7 @@ qcc_rule05 <- function(x, lcl_2s, ucl_2s, run = 3){
       v_upp <- sum(y >= ucl_2s, na.rm = TRUE)
       v_low <- sum(y <= lcl_2s, na.rm = TRUE)
       (v_low >= run - 1) | (v_upp >= run - 1)
-    }) )   
+    }) )
   }
 }
 
@@ -107,7 +107,7 @@ qcc_rule06 <- function(x, lcl_1s, ucl_1s, run = 5){
       v_upp <- sum(y >= ucl_1s, na.rm = TRUE)
       v_low <- sum(y <= lcl_1s, na.rm = TRUE)
       (v_low >= run-1) | (v_upp >= run-1)
-    }))   
+    }))
   }
 }
 
@@ -126,7 +126,7 @@ qcc_rule07 <- function(x, lcl_1s, ucl_1s, run = 15){
     base_data <- zoo::rollapply(x, run, FUN = function(x)x, fill = c(NA, NA, NA), align = "right", partial = FALSE)
     return(apply(base_data, 1, function(y){
       sum(y <= ucl_1s & y >= lcl_1s, na.rm = TRUE) >= run
-    }))    
+    }))
   }
 }
 
@@ -146,9 +146,9 @@ qcc_rule08 <- function(x, lcl_1s, ucl_1s, run = 8){
     base_data <- zoo::rollapply(x, run, FUN = function(x)x, fill = c(NA, NA, NA), align = "right", partial = FALSE)
     return(apply(base_data, 1, function(y){
       sum((y >= ucl_1s) | (y <= lcl_1s), na.rm = TRUE) >= run
-    }))   
+    }))
   }
-  
+
 }
 
 #' Wrapper function that calculates all 8 Shewhart rules for lab results

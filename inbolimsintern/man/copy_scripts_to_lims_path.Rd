@@ -4,7 +4,7 @@
 \alias{copy_scripts_to_lims_path}
 \title{Kopieer R scripts naar LIMS directory}
 \usage{
-copy_scripts_to_lims_path(path)
+copy_scripts_to_lims_path(path = "L:\\\\LabWare-7\\\\Data\\\\R_SCRIPTS")
 }
 \arguments{
 \item{path}{de folder waar de R scripts terecht moeten komen}
