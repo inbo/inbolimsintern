@@ -8,7 +8,7 @@ logfile <- logfile_start(prefix = "PROJECTAANVRAAG_FILE_GRABBER")
 call_id <- 0 #
 
 try({
-  args <- inbolimsintern::prepare_session(call_id) #675
+  args <- inbolimsintern::prepare_session(call_id) #719
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
   params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 }, outFile = logfile)
@@ -22,10 +22,12 @@ files <- tibble(path = list.files(path = grabloc, full.names = FALSE)) %>%
 
 for (i in files) {
   try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
-  try(data <- read_excel(current_file,
+  try(data <- read_excel(file.path(grabloc, current_file),
                          sheet = filter(params, ARG_NAME == "SHEET") %>% pull(VALUE),
-                         guess_max = 5000), outFile = logfile)
+                         col_types = "text", col_names = FALSE), outFile = logfile)
+  print(str(data))
   try(process_file_generic(data,
+                           source_path = grabloc,
                            source_file = current_file,
                            target_location = ".",
                            move_location = "_FINISHED"), outFile = logfile)
