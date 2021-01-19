@@ -20,7 +20,7 @@ scheduler_base_dir <- filter(params, ARG_NAME == "SCHEDULER_BASE_DIR") %>% pull(
 grabloc_batchimport <- paste0(scheduler_base_dir, "\\BATCH_IMPORT")
 grabloc_projaanvraag <- paste0(scheduler_base_dir, "\\PROJECTAANVRAAG")
 grabloc_sampreg <- paste0(scheduler_base_dir, "\\STAALONTVANGST")
-grabloc_veldmeting <- paste0(scheduler_base_dir, "\\VELDMETING")
+grabloc_veldmeting <- paste0(scheduler_base_dir, "\\VELDFORMULIER)
 
 ### >>> BATCH
 
