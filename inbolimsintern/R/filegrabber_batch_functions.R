@@ -11,8 +11,20 @@ get_batchname_from_file <-  function(file) {
   if (!is.na(finddash) && finddash > 0) {
     batch_name <- substring(file, 1, finddash-1)
   } else {
-    warning("Batchnaam niet gevonden in de file, zorg dat de naam gevolgd wordt door ---")
-    stop(paste("batch name niet gevonden in file", file))
+    incrementdash <- gregexpr("-", file)[[1]][2]
+    underscores <- gregexpr("_", file)[[1]]
+    underscore <- min(underscores[underscores > incrementdash])
+    dashes <- gregexpr("-", file)[[1]]
+    dash <- min(dashes[dashes > incrementdash])
+    points <- gregexpr("\\.", file)[[1]]
+    point <- min(points[points > incrementdash])
+    afterbatch <- min(c(underscore, dash, point))
+    if (afterbatch == Inf | is.na(afterbatch)) {
+      warning("Batchnaam niet gevonden in de file, zorg dat de naam gevolgd wordt door ---")
+      stop(paste("batch name niet gevonden in file", file))
+    } else {
+      batch_name <- substring(file, 1, afterbatch - 1)
+    }
   }
   batch_name
 }

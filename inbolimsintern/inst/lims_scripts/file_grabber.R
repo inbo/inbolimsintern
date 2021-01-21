@@ -20,13 +20,22 @@ scheduler_base_dir <- filter(params, ARG_NAME == "SCHEDULER_BASE_DIR") %>% pull(
 grabloc_batchimport <- paste0(scheduler_base_dir, "\\BATCH_IMPORT")
 grabloc_projaanvraag <- paste0(scheduler_base_dir, "\\PROJECTAANVRAAG")
 grabloc_sampreg <- paste0(scheduler_base_dir, "\\STAALONTVANGST")
-grabloc_veldmeting <- paste0(scheduler_base_dir, "\\VELDFORMULIER)
+grabloc_veldmeting <- paste0(scheduler_base_dir, "\\VELDFORMULIER")
 
 ### >>> BATCH
 
 files <- tibble(path = list.files(path = grabloc_batchimport, full.names = FALSE)) %>%
   filter(path != "_FINISHED") %>%
   mutate(sha1 = digest::sha1(path))
+files_ic_an <- filter(files, substring(path, 1, 5) == "IC_AN")
+if (nrow(files_ic_an)) {
+  for (i in 1:nrow(files_ic_an)) {
+    katfile = gsub("IC_AN", "IC_KAT", files_ic_an[i, "path"])
+    try(file.copy(file.path(grabloc_batchimport, files_ic_an[i]),
+              file.path(grabloc_batchimport, katfile)))
+    files <- bind_rows(files, data.frame(path = katfile))
+  }
+}
 
 for (i in 1:nrow(files)) {
   current_file <- batch_name <- batch_info <- data <- NULL
