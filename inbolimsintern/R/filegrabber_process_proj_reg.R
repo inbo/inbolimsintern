@@ -12,14 +12,16 @@
 process_proj_reg <- function(source_path, source_file, target_path, finish_path, sheet){
   try(data <- read_excel(file.path(source_path, source_file),
                          sheet = sheet,
-                         col_types = "text", col_names = FALSE))
+                         range = "A1:E120",
+                         col_types = c("text", "text", 'text', 'date', 'date'), col_names = FALSE))
+
   #schrijf data weg als tsv
   target_file <- paste0(source_file, "_", datetime_text(),  ".tsv")
   print(target_file)
-  readr::write_tsv(data, path = target_file, col_names = FALSE, na = '')
+  readr::write_tsv(data, path = file.path(target_path, target_file), col_names = FALSE, na = '')
 
   #verplaats de originele file
-  move_file <- file.path(move_path, source_file)
+  move_file <- file.path(finish_path, source_file)
   print(move_file)
   try(file.remove(move_file), silent = TRUE)
   file.rename(from = file.path(source_path, source_file), to = move_file)
