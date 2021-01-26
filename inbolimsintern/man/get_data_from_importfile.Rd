@@ -4,12 +4,16 @@
 \alias{get_data_from_importfile}
 \title{Krijg de informatie uit het excel tabblad of txt of csv bestand}
 \usage{
-get_data_from_importfile(path, batch_info)
+get_data_from_importfile(path, batch_info, interpret_types = TRUE, digits = 12)
 }
 \arguments{
 \item{path}{naam van de bestandsnaam inclusief het pad ernaar}
 
 \item{batch_info}{dataset met de batchinformatie die minstens de kolommen template, name, c_import_routine, c_import_sheet, c_root_dir, en group_name, bevat}
+
+\item{interpret_types}{voorlopig niet gebruikt, zou de guess_max naar character veranderen}
+
+\item{digits}{maximaal digits voor numerieke waarde}
 }
 \value{
 dataset et alle importgegevens

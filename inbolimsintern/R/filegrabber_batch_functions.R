@@ -13,9 +13,19 @@ get_batchname_from_file <-  function(file) {
   } else {
     incrementdash <- gregexpr("-", file)[[1]][2]
     underscores <- gregexpr("_", file)[[1]]
-    underscore <- min(underscores[underscores > incrementdash])
+    underscores <- underscores[underscores > incrementdash]
+    if(length(underscores)) {
+      underscore <- min(underscores)
+    } else {
+      underscore <- Inf
+    }
     dashes <- gregexpr("-", file)[[1]]
-    dash <- min(dashes[dashes > incrementdash])
+    dashes <- dashes[dashes > incrementdash]
+    if (length(dashes)) {
+      dash <- min(dashes)
+    } else {
+      dash <- Inf
+    }
     points <- gregexpr("\\.", file)[[1]]
     point <- min(points[points > incrementdash])
     afterbatch <- min(c(underscore, dash, point))
@@ -50,10 +60,12 @@ get_batch_info <-  function(conn, batchname) {
 #'
 #' @param path naam van de bestandsnaam inclusief het pad ernaar
 #' @param batch_info dataset met de batchinformatie die minstens de kolommen template, name, c_import_routine, c_import_sheet, c_root_dir, en group_name, bevat
+#' @param interpret_types voorlopig niet gebruikt, zou de guess_max naar character veranderen
+#' @param digits maximaal digits voor numerieke waarde
 #' @importFrom readr read_tsv read_csv2
 #' @return dataset et alle importgegevens
 #' @export
-get_data_from_importfile <- function(path, batch_info) {
+get_data_from_importfile <- function(path, batch_info, interpret_types = TRUE, digits = 12) {
   batch_template <- batch_info[1, "template"]
   batch_name <- batch_info[1, "name"]
   import_routine <- batch_info[1, "c_import_routine"]
@@ -69,8 +81,15 @@ get_data_from_importfile <- function(path, batch_info) {
     first_col = which(toupper(substring(cell, 1, 1)) == LETTERS)
     print(first_empty)
     print(head(tabblad))
+    tabblad <- as.data.frame(tabblad, stringsAsFactors = FALSE)
     if (length(first_empty)) {
       tabblad <- tabblad[, first_col:(first_empty - 1), drop = FALSE]
+    }
+    for (i  in 1:ncol(tabblad)) {
+      whi_num <- which(!is.na(as.numeric(unlist(tabblad[,i]))))
+      if (length(whi_num)) {
+        tabblad[whi_num,i] <- round(as.numeric(unlist(tabblad[whi_num,i])), digits)
+      }
     }
   } else if (extension %in% c("txt")) {
     tabblad <- readr::read_tsv(filename, guess_max = 5000, col_names = FALSE)
@@ -101,15 +120,33 @@ move_batch_importfile <- function(data, source_path, source_file, batch_info, sc
   labo = batch_info[1, 'group_name']
   template = batch_info[1, 'template']
   batchname = batch_info[1, "name"]
-  file = paste0(batchname, "---", Sys.Date(), '.tsv')
-  movepath = paste(scheduler_base_dir, labo, template, file, sep = "\\")
+  if (template == "C_N_ANALYSER_V") {
+    methode = data[2,2]
+    print(methode)
+    methode = ifelse(methode == '10', 'TC', "TN")
+    file = paste0(batchname, "---", methode, "_", datetime_text(), '.tsv')
+  } else {
+    file = paste0(batchname, "---", datetime_text(), '.tsv')
+  }
+
+  targetfile = paste(scheduler_base_dir, labo, template, file, sep = "\\")
   print(source)
-  print(movepath)
-  res <- try(readr::write_tsv(data, path = movepath, col_names = FALSE, na = ''))
+  print(targetfile)
+  print(batch_info[1,"template"])
+  if ((as.character(batch_info[1,"template"]) %in% c("TEXTUUR_LD_LS13320_V"))) {
+    print("gewoon de originele file kopieren met extensie tsv")
+    res <- try(file.copy(source, targetfile))
+  } else {
+    res <- try(readr::write_tsv(data, path = targetfile, col_names = FALSE, na = ''))
+
+  }
   print(res)
   if (class(res)[1] != "try-error") {
-    datetxt <- gsub('-','', gsub(' ', '_', gsub(":", "", Sys.time())))
-    file.rename(source, paste0(source_path, "\\_FINISHED\\", datetxt, "_", source_file))
+    datetxt <- datetime_text()
+    xtpos = max(gregexpr("\\.", source_file)[[1]])
+    file.rename(source, paste0(source_path, "\\_FINISHED\\",
+                               substring(source_file, 1, xtpos-1), "_", datetxt, "_",
+                               substring(source_file, xtpos, )))
     print('file verplaatst')
   } else {
     print("file kon niet in juiste directory geschreven worden")

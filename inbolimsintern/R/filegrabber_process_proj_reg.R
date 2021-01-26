@@ -5,6 +5,7 @@
 #' @param target_path het pad waar de tsv naartoe geschreven moet worden
 #' @param finish_path het pad waar de excel file heen noet na deze processing
 #' @param sheet naam van het tabblad dat ingelezen moet worden
+#' @importFrom utils str
 #'
 #' @return gecreerde en verplaatse bestanden
 #' @export

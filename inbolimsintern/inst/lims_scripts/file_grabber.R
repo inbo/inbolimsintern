@@ -6,7 +6,8 @@ library(inbolimsintern)
 
 logfile <- logfile_start(prefix = "IMPORTFILE_GRABBER")
 writeLines(con = logfile, paste0("inbolimsintern versie: ", packageVersion("inbolimsintern")))
-call_id <- 0 #747
+call_id <- 0
+#call_id <- 747 #ter test
 
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -36,64 +37,88 @@ if (nrow(files_ic_an)) {
     files <- bind_rows(files, data.frame(path = katfile))
   }
 }
+writeLines(con = logfile, paste0("BATCH: ", as.character(files[,1])))
 
-for (i in 1:nrow(files)) {
-  current_file <- batch_name <- batch_info <- data <- NULL
-  print(paste0("processing file; ", files[i,1]))
-  current_file <-  files[i, 1] %>% pull(path)
-  if (class(current_file)[1] == 'try-error' | !length(current_file) | is.na(current_file)) {
-    next
+if (nrow(files) > 0) {
+  for (i in 1:nrow(files)) {
+    current_file <- batch_name <- batch_info <- data <- NULL
+    print(paste0("processing file; ", files[i,1]))
+    current_file <-  files[i, 1] %>% pull(path)
+    if (class(current_file)[1] == 'try-error' | !length(current_file) | is.na(current_file)) {
+      next
+    }
+    try(batch_name <- get_batchname_from_file(current_file), outFile = logfile)
+    try(batch_info <- get_batch_info(conn, batch_name), outFile = logfile)
+    try(data <- get_data_from_importfile(file.path(grabloc_batchimport, current_file), batch_info, interpret_types = TRUE), outFile = logfile)
+    try(move_batch_importfile(data, batch_info, source_file = current_file, source_path = grabloc_batchimport, scheduler_base_dir = scheduler_base_dir), outFile = logfile)
   }
-  try(batch_name <- get_batchname_from_file(current_file), outFile = logfile)
-  try(batch_info <- get_batch_info(conn, batch_name), outFile = logfile)
-  try(data <- get_data_from_importfile(file.path(grabloc_batchimport, current_file), batch_info), outFile = logfile)
-  try(move_batch_importfile(data, batch_info, source_file = current_file, source_path = grabloc_batchimport, scheduler_base_dir = scheduler_base_dir), outFile = logfile)
 }
 
 ### >>> PROJECTAANVRAAG
 
 files <- tibble(path = list.files(path = grabloc_projaanvraag, full.names = FALSE)) %>%
-  filter(path != "_FINISHED") %>%
+  filter(path != "_FINISHED",
+         substring(path, 1, 1) != "~",
+         substring(path, nchar(path) - 4) == '.xlsx'
+  ) %>%
   mutate(sha1 = digest::sha1(path))
+writeLines(con = logfile, paste0("PRJAANVRAAG: ", as.character(files[,1])))
 
-for (i in 1:nrow(files)) {
-  try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
-  try(process_proj_reg(source_path = grabloc_projaanvraag,
-                       source_file = current_file,
-                       target_path = grabloc_projaanvraag,
-                       finish_path = file.path(grabloc_projaanvraag, "_FINISHED"),
-                       sheet = "Projectformulier"), outFile = logfile)
-  print(str(data))
-
+if (nrow(files) > 0) {
+  for (i in 1:nrow(files)) {
+    try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
+    try(process_proj_reg(source_path = grabloc_projaanvraag,
+                         source_file = current_file,
+                         target_path = grabloc_projaanvraag,
+                         finish_path = file.path(grabloc_projaanvraag, "_FINISHED"),
+                         sheet = "Projectformulier"), outFile = logfile)
+    print(str(data))
+  }
 }
+
 
 ### >>> STAALONTVANGST
 
 files <- tibble(path = list.files(path = grabloc_sampreg, full.names = FALSE)) %>%
-  filter(path != "_FINISHED") %>%
+  filter(path != "_FINISHED",
+         substring(path, 1, 1) != "~",
+         substring(path, nchar(path) - 4) == '.xlsx'
+         ) %>%
   mutate(sha1 = digest::sha1(path))
+writeLines(con = logfile, paste0("ONTVANGST: ", as.character(files[,1])))
 
-for (i in 1:nrow(files)) {
-  try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
-  try(process_samp_reg(source_path = grabloc_sampreg,
-                       source_file = current_file,
-                       target_path = grabloc_sampreg,
-                       finish_path = file.path(grabloc_sampreg, "_FINISHED"),
-                       sheet_samp = "STAALFORMULIER",
-                       sheet_ana = "ANALYSEFORMULIER"))
+if (nrow(files) > 0) {
+  for (i in 1:nrow(files)) {
+    try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
+    try(process_samp_reg(source_path = grabloc_sampreg,
+                         source_file = current_file,
+                         target_path = grabloc_sampreg,
+                         finish_path = file.path(grabloc_sampreg, "_FINISHED"),
+                         sheet_samp = "STAALFORMULIER",
+                         sheet_ana = "ANALYSEFORMULIER"))
+  }
 }
+
 
 #### >>> VELDFORMULIER
 
 files <- tibble(path = list.files(path = grabloc_veldmeting, full.names = FALSE)) %>%
-  filter(path != "_FINISHED") %>%
+  filter(path != "_FINISHED",
+         substring(path, 1, 1) != "~",
+         substring(path, nchar(path) - 4) == '.xlsx'
+  ) %>%
   mutate(sha1 = digest::sha1(path))
-for (i in 1:length(files)) {
-  try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
-  try(process_field_form(source_path = grabloc_veldmeting,
-                         source_file = current_file,
-                         target_path = grabloc_sampreg,
-                         finish_path = file.path(grabloc_sampreg, "_FINISHED"),
-                         sheet = "Veldformulier"), outFile = logfile)
+writeLines(con = logfile, paste0("VELD: ", as.character(files[,1])))
+
+if (nrow(files) > 0) {
+  for (i in 1:length(files)) {
+    try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
+    try(process_field_form(source_path = grabloc_veldmeting,
+                           source_file = current_file,
+                           target_path = grabloc_sampreg,
+                           finish_path = file.path(grabloc_sampreg, "_FINISHED"),
+                           sheet = "Veldformulier"), outFile = logfile)
+  }
 }
+
 

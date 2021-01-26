@@ -6,6 +6,7 @@
 #' @param finish_path het pad waar de excel file heen noet na deze processing
 #' @param sheet_samp naam van het tabblad met de staalinformatie
 #' @param sheet_ana naam van het tabblad met de te loggen analyses
+#' @importFrom utils str
 #'
 #' @return gecreerde en verplaatse bestanden
 #' @export
@@ -34,5 +35,7 @@ process_samp_reg <- function(source_path, source_file, target_path, finish_path,
   print(move_file)
   try(file.remove(move_file), silent = TRUE)
   file.rename(from = file.path(source_path, source_file), to = move_file)
-  str(data)
+  str(data_ana)
+  str(data_samp)
+
 }
