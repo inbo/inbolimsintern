@@ -21,7 +21,7 @@ scheduler_base_dir <- filter(params, ARG_NAME == "SCHEDULER_BASE_DIR") %>% pull(
 grabloc_batchimport <- paste0(scheduler_base_dir, "\\BATCH_IMPORT")
 grabloc_projaanvraag <- paste0(scheduler_base_dir, "\\PROJECTAANVRAAG")
 grabloc_sampreg <- paste0(scheduler_base_dir, "\\STAALONTVANGST")
-grabloc_veldmeting <- paste0(scheduler_base_dir, "\\VELDFORMULIER")
+grabloc_veldformulier <- paste0(scheduler_base_dir, "\\VELDFORMULIER")
 
 ### >>> BATCH
 
@@ -102,7 +102,7 @@ if (nrow(files) > 0) {
 
 #### >>> VELDFORMULIER
 
-files <- tibble(path = list.files(path = grabloc_veldmeting, full.names = FALSE)) %>%
+files <- tibble(path = list.files(path = grabloc_veldformulier, full.names = FALSE)) %>%
   filter(path != "_FINISHED",
          substring(path, 1, 1) != "~",
          substring(path, nchar(path) - 4) == '.xlsx'
@@ -113,10 +113,10 @@ writeLines(con = logfile, paste0("VELD: ", as.character(files[,1])))
 if (nrow(files) > 0) {
   for (i in 1:length(files)) {
     try(current_file <-  files[i, 1] %>% pull(path), outFile = logfile)
-    try(process_field_form(source_path = grabloc_veldmeting,
+    try(process_field_form(source_path = grabloc_veldformulier,
                            source_file = current_file,
-                           target_path = grabloc_sampreg,
-                           finish_path = file.path(grabloc_sampreg, "_FINISHED"),
+                           target_path = grabloc_veldformulier,
+                           finish_path = file.path(grabloc_veldformulier, "_FINISHED"),
                            sheet = "Veldformulier"), outFile = logfile)
   }
 }
