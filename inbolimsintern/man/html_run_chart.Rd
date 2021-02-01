@@ -4,7 +4,14 @@
 \alias{html_run_chart}
 \title{Maak een html met de run chart}
 \usage{
-html_run_chart(plotdata, project, path, split_fig = TRUE, ...)
+html_run_chart(
+  plotdata,
+  project,
+  path,
+  split_fig = TRUE,
+  chart_header = "",
+  ...
+)
 }
 \arguments{
 \item{plotdata}{data om te plotten}
@@ -14,6 +21,8 @@ html_run_chart(plotdata, project, path, split_fig = TRUE, ...)
 \item{path}{basispad waarin geschreven wordt}
 
 \item{split_fig}{logische waarde die bepaalt of de plots ook uitgesplitst per variabele getoond worden}
+
+\item{chart_header}{De titel voor de chart, niveau H1}
 
 \item{...}{andere argumenten voor subfuncties zoals show_pagesource voor generate_html_source}
 }

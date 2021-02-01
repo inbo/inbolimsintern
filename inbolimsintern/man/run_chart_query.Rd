@@ -4,10 +4,12 @@
 \alias{run_chart_query}
 \title{Basisquery voor run chart}
 \usage{
-run_chart_query(params)
+run_chart_query(params, index = 1)
 }
 \arguments{
 \item{params}{data.frame met kolommen ARG_NAME (PROJECT, Y1 + optioneel Y2,Y3,Y4,Y5) en VALUE}
+
+\item{index}{wanneer verschillende figuren gemaakt worden, wordt hier de juiste info geselecteerd}
 }
 \value{
 query string

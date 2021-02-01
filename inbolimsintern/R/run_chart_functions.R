@@ -3,18 +3,21 @@
 #' Basisquery voor run chart
 #'
 #' @param params data.frame met kolommen ARG_NAME (PROJECT, Y1 + optioneel Y2,Y3,Y4,Y5) en VALUE
+#' @param index wanneer verschillende figuren gemaakt worden, wordt hier de juiste info geselecteerd
 #' @import dplyr
 #' @return query string
 #' @export
 #'
 
-run_chart_query <- function(params) {
-  project <- params %>% filter(.data$ARG_NAME == "PROJECT") %>% pull(.data$VALUE)
-  yaxis1 <- params %>% filter(.data$ARG_NAME == "Y1") %>% pull(.data$VALUE)
-  yaxis2 <- params %>% filter(.data$ARG_NAME == "Y2") %>% pull(.data$VALUE)
-  yaxis3 <- params %>% filter(.data$ARG_NAME == "Y3") %>% pull(.data$VALUE)
-  yaxis4 <- params %>% filter(.data$ARG_NAME == "Y4") %>% pull(.data$VALUE)
-  yaxis5 <- params %>% filter(.data$ARG_NAME == "Y5") %>% pull(.data$VALUE)
+run_chart_query <- function(params, index = 1) {
+  chartname <- (params %>% filter(.data$ARG_NAME == "CHART") %>% pull(.data$VALUE))[index]
+  if (is.na(chartname)) chartname = " "
+  project <- (params %>% filter(.data$ARG_NAME == "PROJECT") %>% pull(.data$VALUE))[index]
+  yaxis1 <- (params %>% filter(.data$ARG_NAME == "Y1") %>% pull(.data$VALUE))[index]
+  yaxis2 <- (params %>% filter(.data$ARG_NAME == "Y2") %>% pull(.data$VALUE))[index]
+  yaxis3 <- (params %>% filter(.data$ARG_NAME == "Y3") %>% pull(.data$VALUE))[index]
+  yaxis4 <- (params %>% filter(.data$ARG_NAME == "Y4") %>% pull(.data$VALUE))[index]
+  yaxis5 <- (params %>% filter(.data$ARG_NAME == "Y5") %>% pull(.data$VALUE))[index]
 
   yaxis1 <- paste0("(r.ANALYSIS = '",
                    paste(unlist(str_split(yaxis1, pattern = "---")),
@@ -82,7 +85,7 @@ get_run_chart_data <- function(conn, qry) {
                  group_by(C_ORIG_DUP_NUMBER) %>%
                  summarize(TEXT_ID = TEXT_ID_SOURCE[which.min(C_ORIG_DUP_NUMBER)]),
                by = "C_ORIG_DUP_NUMBER") %>%
-    arrange(C_ORIG_DUP_NUMBER, SAMPLE_NUMBER)
+    arrange(TEXT_ID)
 
   #maak een factor en numerieke waarde van de factor om de plot te voeden
   plotdata <- plotdata %>%
@@ -100,23 +103,25 @@ get_run_chart_data <- function(conn, qry) {
 #' @param path basispad waarin geschreven wordt
 #' @importFrom ggplot2 ggplot aes geom_point geom_path scale_x_continuous theme ggsave
 #' @param split_fig logische waarde die bepaalt of de plots ook uitgesplitst per variabele getoond worden
+#' @param chart_header De titel voor de chart, niveau H1
 #' @param ... andere argumenten voor subfuncties zoals show_pagesource voor generate_html_source
 #'
 #' @return naam van de gerenderde html file
 #' @export
 #'
-html_run_chart <- function(plotdata, project, path, split_fig = TRUE, ...) {
+html_run_chart <- function(plotdata, project, path, split_fig = TRUE, chart_header = "", ...) {
   datetxt <- datetime_text()
-  fileprefix <- paste0(project, "_run_chart_", datetxt)
-  fileprefix1 <- paste0(project, "_run_chart_split_", datetxt)
-  figfilename <- paste0(fileprefix, ".png")
-  figfilename1 <- paste0(fileprefix1, ".png")
-  htmlfullpath <- paste0(path, "/", fileprefix, ".html")
-  figfullpath <- paste0(path, "/", figfilename)
-  figfullpath1 <- paste0(path, "/", figfilename1)
+  file0 <- paste0(path, "_", chart_header, "_fig_combined.png")
+  file1 <- paste0(path, "_", chart_header, "_fig_split.png")
+  fileshort0 <- substring(file0, max(gregexpr("\\\\", file0)[[1]]) + 1)
+  fileshort1 <- substring(file1, max(gregexpr("\\\\", file1)[[1]]) + 1)
 
-  plotdata$anacomp <- interaction(plotdata$ANALYSIS, plotdata$NAME)
-  breaks <- run_chart_breaks(n = 40, numeric_labels = plotdata$TEXT_ID_NUM, label_values = plotdata$TEXT_ID)
+  plotdata <- plotdata %>%
+    mutate(anacomp = interaction(ANALYSIS, NAME)) %>%
+    arrange(TEXT_ID)
+
+  ulabs <- distinct(plotdata[c('TEXT_ID_NUM', 'TEXT_ID')])
+  breaks <- run_chart_breaks(n = 40, numeric_labels = ulabs$TEXT_ID_NUM, label_values = ulabs$TEXT_ID)
   p <- ggplot(plotdata,
               aes(x = TEXT_ID_NUM,
                   y = ENTRY,
@@ -128,23 +133,18 @@ html_run_chart <- function(plotdata, project, path, split_fig = TRUE, ...) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))
   p0 <- p + theme(legend.position = "bottom")
   print(p0)
-  ggsave(p0, filename = figfullpath,
+  ggsave(p0, filename = file0,
          width =7, height = 5, dpi = 300)
 
-  print("here")
   p1 <- p + facet_wrap(~anacomp, ncol = 1, scales = "free_y") +
     theme(legend.position = 'none')
   print(p1)
-  ggsave(p1, filename = figfullpath1,
+  ggsave(p1, filename = file1,
          width =7, height = 5, dpi = 300)
 
-  htmlfile <- htmlfullpath
-  print(htmlfile)
-  pagesource <-
-    generate_html_source(htmlfile,
-                         list(paste0("<h1></h1>\n<IMG SRC=\"",figfilename,"\"><p>\n"),
-                              paste0("<h1></h1>\n<IMG SRC=\"",figfilename1,"\"><p>\n")))
-  htmlfile
+  paste0("<H1>", chart_header, "<H1>\n",
+         "<h2>Gecombineerd</h2>\n<IMG SRC=\"",fileshort0,"\"><p>\n",
+         "<h2>Gesplitst</h2>\n<IMG SRC=\"",fileshort1,"\"><p>\n")
 }
 
 ##########################################
@@ -165,10 +165,15 @@ run_chart_breaks <- function(numeric_labels, label_values, n_max = 40) {
   label_values <- as.character(label_values[orde])
   overflowfactor <- ceiling(len / n_max)
 
+  print(data.frame(numeric_labels, label_values))
+  print(overflowfactor)
+
   if (len != length(label_values)) stop("numerieke waarden en labels moeten even lang zijn")
   if (overflowfactor > 1) {
     values <- c(numeric_labels[seq(1, len, by = overflowfactor)], numeric_labels[len])
     labels <- c(label_values  [seq(1, len, by = overflowfactor)],   label_values[len])
+    print(values)
+    print(labels)
     if (values[length(values)] == values[length(values)-1]) {
       values <- values[-length(values)]
       labels <- labels[-length(labels)]
@@ -177,29 +182,10 @@ run_chart_breaks <- function(numeric_labels, label_values, n_max = 40) {
   } else {
     breaks = list(value = numeric_labels, label = label_values)
   }
+  print(breaks)
   breaks
 }
 
 
 #######################################################################
 
-#' Genereer basis html file
-#'
-#' @param entries list met textstrings die de body van de html uitmaken
-#' @param path de volledige padnaam naar de html file
-#' @param show_pagesource logische waarde om te bepalen of de html source op het scherm getoond moet worden
-#' @param ... andere parameters (nog niet in gebruik)
-#'
-#' @return html source
-#' @export
-#'
-generate_html_source <- function(path, entries, show_pagesource = FALSE,  ...) {
-
-  pagesource <- "<HTML><HEAD></HEAD><BODY>\n"
-  for (i in 1:length(entries)) {
-    pagesource <- paste0(pagesource, entries[[i]])
-  }
-  pagesource <- paste0(pagesource, "\n</BODY></HTML>")
-  if (show_pagesource) print(pagesource)
-  writeLines(pagesource, con = path)
-}
