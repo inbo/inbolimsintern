@@ -12,12 +12,24 @@
 #' @export
 #'
 process_samp_reg <- function(source_path, source_file, target_path, finish_path, sheet_samp, sheet_ana){
-  try(data_samp <- read_excel(file.path(source_path, source_file),
+  print("start routine")
+  data_samp <- read_excel(file.path(source_path, source_file),
                          sheet = sheet_samp,
-                         col_types = "text", col_names = FALSE))
-  try(data_ana <- read_excel(file.path(source_path, source_file),
+                         range = "A1:X500",
+                         col_types = c(rep("text",10), "date", rep("text", 5), "date", rep("text", 7)),
+                         col_names = FALSE)
+  data_ana <- read_excel(file.path(source_path, source_file),
                          sheet = sheet_ana,
-                         col_types = "text", col_names = FALSE))
+                         col_types = "text", col_names = FALSE)
+  print("in sampreg")
+  print(data_samp)
+  print(str(data_samp))
+  whi_empty <- which((data_samp[,2] == "ProjectID?"))
+  if (length(whi_empty)) {
+    whi_empty <- whi_empty[1]
+    data_samp <- data_samp[1:(whi_empty - 1), , drop = FALSE]
+    data_ana <- data_ana[1:(whi_empty - 1), , drop = FALSE]
+  }
   try(project_naam <- data_samp[5,2])
   print(project_naam)
 

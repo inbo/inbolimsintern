@@ -25,6 +25,7 @@ grabloc_veldformulier <- paste0(scheduler_base_dir, "\\VELDFORMULIER")
 
 ### >>> BATCH
 
+current_file <- NULL
 files <- tibble(path = list.files(path = grabloc_batchimport, full.names = FALSE)) %>%
   filter(path != "_FINISHED") %>%
   mutate(sha1 = digest::sha1(path))
@@ -56,6 +57,7 @@ if (nrow(files) > 0) {
 
 ### >>> PROJECTAANVRAAG
 
+current_file <- NULL
 files <- tibble(path = list.files(path = grabloc_projaanvraag, full.names = FALSE)) %>%
   filter(path != "_FINISHED",
          substring(path, 1, 1) != "~",
@@ -79,6 +81,7 @@ if (nrow(files) > 0) {
 
 ### >>> STAALONTVANGST
 
+current_file <- NULL
 files <- tibble(path = list.files(path = grabloc_sampreg, full.names = FALSE)) %>%
   filter(path != "_FINISHED",
          substring(path, 1, 1) != "~",
@@ -102,6 +105,7 @@ if (nrow(files) > 0) {
 
 #### >>> VELDFORMULIER
 
+current_file <- NULL
 files <- tibble(path = list.files(path = grabloc_veldformulier, full.names = FALSE)) %>%
   filter(path != "_FINISHED",
          substring(path, 1, 1) != "~",

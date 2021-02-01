@@ -4,7 +4,14 @@
 \alias{process_field_form}
 \title{Process files omtrent inlezen veldformulier}
 \usage{
-process_field_form(source_path, source_file, target_path, finish_path, sheet)
+process_field_form(
+  source_path,
+  source_file,
+  target_path,
+  finish_path,
+  sheet,
+  digits = 12
+)
 }
 \arguments{
 \item{source_path}{pad waar het bronbestand te vinden is}
@@ -16,6 +23,8 @@ process_field_form(source_path, source_file, target_path, finish_path, sheet)
 \item{finish_path}{het pad waar de excel file heen noet na deze processing}
 
 \item{sheet}{naam van het tabblad dat ingelezen moet worden}
+
+\item{digits}{hoeveel digits behouden bij het bewaren van nummerieke waarden}
 }
 \value{
 gecreerde en verplaatse bestanden
