@@ -9,6 +9,7 @@ gg_lims_shewhart(
   red_rules = 1:2,
   orange_rules = 3:6,
   yellow_rules = 7:8,
+  add_nominal = TRUE,
   ...
 )
 }
@@ -20,6 +21,8 @@ gg_lims_shewhart(
 \item{orange_rules}{numeric vector of rule violations that should be marked as orange}
 
 \item{yellow_rules}{numeric vector of rule violations that should be marked as yellow}
+
+\item{add_nominal}{logical indicating if a theoretical value should also be plotted (in the column with name nominal_value)}
 
 \item{...}{not currently in use}
 }
