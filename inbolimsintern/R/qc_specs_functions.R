@@ -65,6 +65,24 @@ make_spec_queries <- function(label, active = "F", qc_sample, qc_version,
                               product, product_version, sampling_point,
                               theo_value = NULL, theo_sd = NULL,
                               meas_value = NULL, meas_sd = NULL) {
+  print(theo_value)
+  print(theo_sd)
+  print(meas_value)
+  print(meas_sd)
+
+  if (is.null(theo_value) || is.na(theo_value) || theo_value == "NaN" || theo_value == "NA") {
+    theo_value <- "NULL"
+  }
+  if (is.null(theo_sd) || is.na(theo_sd) || theo_sd == "NaN" || theo_sd == "NA") {
+    theo_sd <- "NULL"
+  }
+  if (is.null(meas_value) || is.na(meas_value) || meas_value == "NaN" || meas_value == "NA") {
+    meas_value <-"NULL"
+  }
+  if (is.null(meas_sd) || is.na(meas_sd) || meas_sd == "NaN" || meas_sd == "NA") {
+    meas_sd <- "NULL"
+  }
+
   where_part <- paste0(
     " where LABEL = ", "'", label, "'", " and QC_SAMPLE = ", "'", qc_sample, "'",
     " and QC_SAMPLE_VERSION = ", "'", qc_version, "'",
