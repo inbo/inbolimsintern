@@ -62,7 +62,11 @@ for (comb in unique(plotdata$combi)) {
                         center = mean(subdata %>% pull(AVG_MEASURED)),
                         sd = mean(subdata %>% pull(SD_MEASURED)))
   subdata <- bind_cols(subdata, as.data.frame(rules))
+<<<<<<< HEAD
   htmldata <- subdata %>% transmute(Nr, TEXT_ID, BATCH, value = round(value, 5), UNITS,
+=======
+  htmldata <- subdata %>% transmute(Nr, TEXT_ID, BATCH, value = round(value, 5),
+>>>>>>> 8ca6b631dc4df9a454d14417d831562678df01e0
                                     rules = paste0(rule01, rule02, rule03, rule04, rule05, rule06, rule07, rule08))
 
   print(comb)
