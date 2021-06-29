@@ -1,0 +1,97 @@
+---
+title: "Analyserapport"
+author: "PV"
+date: "6/2/2021"
+output:
+  pdf_document: 
+    number_sections: true
+classoption:
+  landscape
+
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(DBI)
+library(inbolimsintern)
+```
+
+```{r setupparam}
+creds <- readLines("dbcredentials.txt")
+print(creds)
+
+conn = ""
+conn <- inbolimsintern::limsdb_connect(uid = creds[2], pwd = creds[3])
+proj_name <- "I-21V052-01"
+
+print(getwd())
+
+print(conn)
+
+```
+
+# COA Rapport - Project `r proj_name`
+
+```{r data, include=TRUE}
+qry <- "
+select 
+   s.PROJECT, s.SAMPLE_NUMBER, s.ORIGINAL_SAMPLE, laboID = s.TEXT_ID
+ , externID = s.SAMPLE_ID
+ , ANALYSIS_NAME = a.NAME, a.ANALYSIS_TYPE, a.COMMON_NAME, a.ALIAS_NAME
+ , analyse = a.REPORTED_NAME
+ , testReplicate = t.REPLICATE_COUNT
+ , resultReplicate = r.REPLICATE_COUNT
+ , component = r.REPORTED_NAME, resultaat = r.FORMATTED_ENTRY
+ , eenheid = u.DISPLAY_STRING, r.INSTRUMENT 
+from sample s 
+inner join test t on t.SAMPLE_NUMBER = s.SAMPLE_NUMBER
+inner join result r on r.TEST_NUMBER = t.TEST_NUMBER
+inner join analysis a on t.ANALYSIS = a.NAME and t.VERSION = a.VERSION
+inner join UNITS u on u.UNIT_CODE = r.UNITS
+where s.PROJECT = 'I-21V052-01' and r.REPORTABLE = 'T' 
+and s.STATUS = 'A' and r.STATUS = 'A'
+ORDER BY a.ANALYSIS_TYPE, a.REPORTED_NAME, s.ORIGINAL_SAMPLE
+"
+
+
+dfReport <- DBI::dbGetQuery(conn, qry)
+dfStalen <- dfReport %>% 
+  select(laboID, externID, ORIGINAL_SAMPLE) %>% 
+  arrange(laboID) %>% 
+  filter(!duplicated(ORIGINAL_SAMPLE))
+
+```
+
+## Overzicht stalen
+
+```{r staaloverzicht}
+knitr::kable(dfStalen %>% select(-ORIGINAL_SAMPLE))
+
+tmp <- dfReport %>% 
+  inner_join(dfStalen %>% 
+               select(labID = laboID, ORIGINAL_SAMPLE), 
+             by = "ORIGINAL_SAMPLE")
+idnames <- tibble(analyse = tmp$analyse, 
+                  component = tmp$component,
+                  trep = tmp$testReplicate,
+                  rrep = tmp$resultReplicate,
+                  sapcode = tmp$ALIAS_NAME,
+                  idname = paste(tmp$analyse, 
+                                 tmp$testReplicate,
+                                 tmp$resultReplicate,
+                                 tmp$component, sep = "_")) %>% 
+  filter(!duplicated(.))
+
+tabel <- pivot_wider(tmp, 
+            names_from = c(analyse,testReplicate, resultReplicate, component), 
+            values_fn = max,
+            id_cols = labID, 
+            values_from = resultaat)
+
+tibble(order = 1:ncol(tabel), idname = colnames(tabel)) %>% inner_join(idnames)
+
+☺knitr::kable(tabel)
+
+```
