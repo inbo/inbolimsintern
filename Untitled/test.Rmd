@@ -1,0 +1,50 @@
+---
+title: "Analyserapport"
+author: "PV"
+date: "6/2/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(DBI)
+library(inbolimsintern)
+
+args <- inbolimsintern::prepare_session(0) #dbcredentials.txt aanwezig
+conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
+proj_name <- "I-21V052-01"
+```
+
+# COA Rapport - Project `r proj_name`
+
+```{r data, include=TRUE}
+qry <- "
+select 
+ s.PROJECT, s.SAMPLE_NUMBER, s.ORIGINAL_SAMPLE, s.TEXT_ID, s.SAMPLE_ID
+,a.NAME, a.ANALYSIS_TYPE, a.COMMON_NAME, a.ALIAS_NAME, a.REPORTED_NAME
+,r.REPORTED_NAME, r.FORMATTED_ENTRY, u.DISPLAY_STRING, r.INSTRUMENT 
+from sample s 
+inner join test t on t.SAMPLE_NUMBER = s.SAMPLE_NUMBER
+inner join result r on r.TEST_NUMBER = t.TEST_NUMBER
+inner join analysis a on t.ANALYSIS = a.NAME and t.VERSION = a.VERSION
+inner join UNITS u on u.UNIT_CODE = r.UNITS
+where s.PROJECT = 'I-21V052-01' and r.REPORTABLE = 'T' 
+and s.STATUS = 'A' and r.STATUS = 'A'
+ORDER BY a.ANALYSIS_TYPE, a.REPORTED_NAME, s.ORIGINAL_SAMPLE
+"
+print(conn)
+
+#dfReport <- DBI::dbGetQuery(conn, qry)
+#dfStalen <- dfReport %>% select(TEXT_ID, SAMPLE_ID) %>% 
+#  filter(!duplicated(.))
+
+```
+
+## Overzicht stalen
+
+```{r staaloverzicht}
+#knitr::kable(dfStalen)
+```

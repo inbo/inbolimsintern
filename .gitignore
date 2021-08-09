@@ -12,6 +12,7 @@ test_abi_ascii.txt
 tijdelijk/
 workdir/
 _NOT_GIT_/
+lims_db_bevraging/output/
 
 # Session Data files
 .RData
