@@ -58,7 +58,6 @@ alldata <- alldataorig %>%
   arrange(PRODUCT_GRADE, ANALYSIS, NAME, BATCH, ORDER_NUMBER) %>%
   mutate(rownr = 1:nrow(.),
          WAARDE = as.numeric(ENTRY),
-         rownr = 1:length(WAARDE),
          combi = make.names(paste(ANALYSIS, NAME, PRODUCT_GRADE, sep = "_")))
 
 first_batch_qc <- alldata %>%
