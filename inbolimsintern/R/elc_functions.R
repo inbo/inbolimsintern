@@ -14,13 +14,15 @@ calc_elc_stats <- function(x){
   avg = avgorig
   sd = sdorig
   x1 <- x
+  print(x1)
+
   while(not_all_in_3s & n > 3) {
     n = length(x1)
-    avg <- mean(x1)
-    sd  <- sd(x1)
+    avg <- mean(x1, na.rm = TRUE)
+    sd  <- sd(x1, na.rm = TRUE)
     min3s <- avg - 3*sd
     max3s <- avg + 3*sd
-    if (all(x1 <= max3s) & all(x1 >= min3s)) {
+    if (all(na.omit(x1) <= max3s) & all(na.omit(x1) >= min3s)) {
       not_all_in_3s <- FALSE
     } else {
       del <- which.max(abs(x1 - avg))
@@ -121,7 +123,7 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
 #' Maak data aan voor elc shewhart html
 #'
 #' @param plotdata dataset typisch van get_ELC_data
-#' @param colors vector van 4 kleuren die gebruikt worden in plot
+#' @param colors vector van 5 kleuren die gebruikt worden in plot
 #' @param base_size basis puntgrootte in de plot
 #' @param expected_value indien NULL berekend uit de data, anders wordt deze gebruikt
 #' @param expected_sd indien NULL berekend uit de data, anders wordt deze gebruikt
@@ -130,7 +132,7 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
 #' @return lijst met 4 datasets: plot, borders, summary en tabel
 #' @export
 elc_htmldata <- function(plotdata,
-                         colors = c("lightblue3", "green4", "gold", "red"),
+                         colors = c("lightblue3", "green4", "gold", "red", "blue4"),
                          base_size = 1.5,
                          expected_value = NULL,
                          expected_sd = NULL,
@@ -153,7 +155,7 @@ elc_htmldata <- function(plotdata,
 
   s_borders <- data.frame(lim = -3:3,
                           val = ctr_x + -3:3 * ctr_sd,
-                          color = colors[c(4,3,2,1,2,3,4)])
+                          color = colors[c(4,3,2,5,2,3,4)])
 
   #Gebruik enkel het eerste punt in een batch van een QC staal voor de berekening
   checkdata <- data %>%
@@ -254,7 +256,8 @@ ELC_shewhart_plot <- function(subdata, borders,
     s1 <- borders[borders$lim == 1, "val"] - borders[borders$lim == 0, "val"]
     smin <- borders[borders$lim == 0, "val"] - max_s_plot *s1
     smax <- borders[borders$lim == 0, "val"] + max_s_plot *s1
-    if (any(subdata$waarde>smax) | any(subdata$waarde<smin)) {
+
+    if (any(subdata$waarde>smax, na.rm = TRUE) | any(subdata$waarde<smin, na.rm = TRUE)) {
       zoom_y <-  TRUE
     }
   }
@@ -263,7 +266,7 @@ ELC_shewhart_plot <- function(subdata, borders,
     geom_point(colour = subdata$color) +
     geom_path(data = evaldata, aes(x = batchnr, y = waarde), colour = base_color) +
     geom_point(data = evaldata, aes(x = batchnr, y = waarde),
-               colour = evaldata$color, evaldata = subdata$size) +
+               colour = evaldata$color) +
     geom_hline(data = borders, aes(yintercept = val),
                colour = borders$color) +
     scale_x_continuous(breaks = evaldata$batchnr,

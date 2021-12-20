@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740
+call_id <- 0 #call_id <- 1740 #call_id <- 3134
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -56,6 +56,7 @@ cat("<H1>Leeswijzer</H1>",
 ## Loop through each sample_name, component combination
 
 for (comb in combis) {
+  print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
   figpath <- paste0(htmlpath, "\\", figpathshort)
   cat("\n", comb, file = logfile, append = TRUE)
@@ -70,8 +71,24 @@ for (comb in combis) {
       file = htmlfile, append = TRUE)
   cat(knitr::kable(htmldata[['summary']], format = "html"),
       file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['tabel']], format = "html"),
+  cat(knitr::kable(htmldata[['tabel']] %>% filter(eval != "."),
+                   format = "html"),
       file = htmlfile, append = TRUE)
+  fxavg <- htmldata[['summary']] %>% filter(param == "gem") %>% pull(ctr_fix)
+  fxsd <- htmldata[['summary']] %>% filter(param == "sd") %>% pull(ctr_fix)
+  mx <- fxavg + 3 * fxsd
+  mn <- fxavg - 3 * fxsd
+  noncalcout3s <- htmldata[['tabel']] %>%
+    filter(eval == ".",
+           waarde > mx | waarde < mn)
+  if (nrow(noncalcout3s)> 0) {
+    cat("<h3>Niet weergegeven waarden buiten 3s</h3><p>",
+        file = htmlfile, append = TRUE)
+    cat(knitr::kable(noncalcout3s,
+                     format = "html"),
+        file = htmlfile, append = TRUE)
+  }
+
 
   cat(paste0("\neinde van ", comb), file = logfile, append = TRUE)
 }
