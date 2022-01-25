@@ -14,7 +14,7 @@ calc_elc_stats <- function(x){
   avg = avgorig
   sd = sdorig
   x1 <- x
-  print(x1)
+  #print(x1)
 
   while(not_all_in_3s & n > 3) {
     n = length(x1)
@@ -32,13 +32,59 @@ calc_elc_stats <- function(x){
   data.frame(N_all = Norig,
              Avg_all = avgorig,
              Sd_all = sdorig,
-             N = n,
+             N_used = n,
              Avg = avg,
              Sd = sd,
              min3s = avg - 3*sd,
              max3s = avg + 3*sd)
 }
 
+#############################################################
+compare_with_tf <- function(x, years){
+  x0 <- x$value[x$jaar == years[4]]
+  xmin1 <- x$value[x$jaar == years[3]]
+  xmin2 <- x$value[x$jaar == years[2]]
+  xmin3 <- x$value[x$jaar == years[1]]
+  print(c(length(x0), length(xmin1), length(xmin2), length(xmin3)))
+  #de vorige jaren worden verder gecombineerd zodat de vergelijkingen zijn:
+  #x0 vs xmin1
+  #x0 vs c(xmin1, xmin2)
+  #x0 vs c(xmin1, xmin2, xmin3)
+  #op voorwaarde dat beide kanten minstens 10 observaties hebben
+
+  if (length(x0) >= 10 & length(xmin1) >= 10 ) {
+    print(x0)
+    print(xmin1)
+    ttest1 <- try(t.test(x0, xmin1))
+    ftest1 <- try(var.test(x0, xmin1))
+    t1 <- ifelse(class(ttest1) == "try-error", NA, ttest1$p.value)
+    f1 <- ifelse(class(ftest1) == "try-error", NA, ftest1$p.value)
+  } else {
+    t1 <- f1 <- NA
+  }
+  if (length(x0) >= 10 & length(c(xmin1,xmin2)) >= 10 ) {
+    ttest2 <- try(t.test(x0, c(xmin1,xmin2)))
+    ftest2 <- try(var.test(x0, c(xmin1,xmin2)))
+    t2 <- ifelse(class(ttest2) == "try-error", NA, ttest2$p.value)
+    f2 <- ifelse(class(ftest2) == "try-error", NA, ftest2$p.value)
+  } else {
+    t2 <- f2 <- NA
+  }
+  if (length(x0) >= 10 & length(c(xmin1, xmin2, xmin3)) >= 10 ) {
+    ttest3 <- try(t.test(x0, c(xmin1, xmin2, xmin3)))
+    ftest3 <- try(var.test(x0, c(xmin1, xmin2, xmin3)))
+    t3 <- ifelse(class(ttest3) == "try-error", NA, ttest3$p.value)
+    f3 <- ifelse(class(ftest3) == "try-error", NA, ftest3$p.value)
+  } else {
+    t3 <- f3 <- NA
+  }
+
+  rv <- data.frame(t1, f1, t2, f2, t3, f3)
+  colnames(rv) <- c(paste0(c("pval_t_", "pval_F_"), paste0(years[4], "-", years[3])),
+                    paste0(c("pval_t_", "pval_F_"), paste0(years[4], "-", years[2])),
+                    paste0(c("pval_t_", "pval_F_"), paste0(years[4], "-", years[1])))
+  rv
+}
 
 
 

@@ -74,8 +74,8 @@ for (i in 1:nrow(importdata)) {
   q = paste0("update PRODUCT_SPEC set ",
              " C_CTR_X = ", Avg,
              " ,C_CTR_SD = ", Sd,
-             " ,MIN_VALUE = ", Avg - 2 * Sd,
-             " ,MAX_VALUE = ", Avg + 2 * Sd,
+             " ,MIN_VALUE = ", Avg - 2 * Sd, #beter niet doen, totdat alles op punt staat
+             " ,MAX_VALUE = ", Avg + 2 * Sd, #beter niet doen
              " ,C_CERTIFIED_VALUE = ", Cval,
              " ,C_CERTIFIED_SD = ", Csd,
              " WHERE  PRODUCT = '", data$PRODUCT, "'",
