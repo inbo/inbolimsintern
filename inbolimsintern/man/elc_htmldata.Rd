@@ -6,7 +6,7 @@
 \usage{
 elc_htmldata(
   plotdata,
-  colors = c("lightblue3", "green4", "gold", "red"),
+  colors = c("lightblue3", "green4", "gold", "red", "blue4"),
   base_size = 1.5,
   expected_value = NULL,
   expected_sd = NULL,
@@ -16,7 +16,7 @@ elc_htmldata(
 \arguments{
 \item{plotdata}{dataset typisch van get_ELC_data}
 
-\item{colors}{vector van 4 kleuren die gebruikt worden in plot}
+\item{colors}{vector van 5 kleuren die gebruikt worden in plot}
 
 \item{base_size}{basis puntgrootte in de plot}
 

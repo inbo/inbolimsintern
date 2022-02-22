@@ -146,6 +146,11 @@ list_all_qc_data <- function(conn, min_date = "2020-01-01", max_date = "2021-01-
 get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
   sqlcode <- readLines(sqlfile)
   sqlcode <- paste(sqlcode, collapse = "\n")
+
+  qry = "select NAME, MaxVersion = max(VERSION) from PRODUCT group by NAME"
+  productVersions = DBI::dbGetQuery(dbcon, qry)
+  cat(sqlcode)
+
   plotdata <- DBI::dbGetQuery(dbcon, sqlcode)
   batchvolgorde <- plotdata %>%
     group_by(BATCH) %>%
