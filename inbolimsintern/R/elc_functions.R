@@ -254,11 +254,11 @@ elc_htmldata <- function(plotdata,
     arrange(order) %>%
     mutate(color = ifelse(is.na(eval),
                           colors[1],
-                          ifelse(out3s | out2s | warn,
+                          ifelse(out3s | out2s,
                                  colors[4],
                                  ifelse(drift | bias,
                                         colors[3], colors[2]))),
-           size = ifelse(out3s | out2s | warn | drift | bias,
+           size = ifelse(out3s | out2s | drift | bias,
                          1.5 * base_size,
                          base_size))
 
