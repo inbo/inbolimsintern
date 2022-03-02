@@ -6,7 +6,7 @@
 \usage{
 elc_htmldata(
   plotdata,
-  colors = c("lightblue3", "green4", "gold", "red", "blue4"),
+  colors = c("lightblue3", "green4", "orange", "red", "blue4"),
   base_size = 1.5,
   expected_value = NULL,
   expected_sd = NULL,

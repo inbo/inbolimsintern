@@ -7,7 +7,7 @@ library(inbolimsintern)
 logfile <- logfile_start(prefix = "IMPORTFILE_GRABBER")
 writeLines(con = logfile, paste0("inbolimsintern versie: ", packageVersion("inbolimsintern")))
 call_id <- 0
-#call_id <- 3129 #ter test
+#call_id <- 3129 #ter test call_id <- 3827
 
 try({
   args <- inbolimsintern::prepare_session(call_id)

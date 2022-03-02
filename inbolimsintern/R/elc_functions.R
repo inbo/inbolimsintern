@@ -183,7 +183,7 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
 #' @return lijst met 4 datasets: plot, borders, summary en tabel
 #' @export
 elc_htmldata <- function(plotdata,
-                         colors = c("lightblue3", "green4", "gold", "red", "blue4"),
+                         colors = c("lightblue3", "green4", "orange", "red", "blue4"),
                          base_size = 1.5,
                          expected_value = NULL,
                          expected_sd = NULL,
@@ -224,6 +224,14 @@ elc_htmldata <- function(plotdata,
                                 ctr_x - 2 * ctr_sd,
                                 ctr_x + 2 * ctr_sd,
                                 run = 3)
+
+  #SOP_033 R2a: 2 op 2 buiten 2s aan dezelfde kant (out2s)
+  checkdata$out2s  <- qcc_rule05b(values,
+                                ctr_x - 2 * ctr_sd,
+                                ctr_x + 2 * ctr_sd,
+                                run = 2)
+
+
   #SOP_033 R4: 6 opeenvolgende stijgend of dalend (drift)
   checkdata$drift <- qcc_rule03(values,
                                 run = 6)
@@ -232,7 +240,8 @@ elc_htmldata <- function(plotdata,
                                 ctr_x,
                                 run = 9)
   checkdata$eval <- paste0(ifelse(checkdata$out3s, 'R1', '--'),
-                           ifelse(checkdata$warn,  'R2', '--'),
+                           #ifelse(checkdata$warn,  'R2', '--'), afw tov iso
+                           ifelse(checkdata$out2s,  'R2', '--'), #keuze labo
                            ifelse(checkdata$bias,  'R3', '--'),
                            ifelse(checkdata$drift, 'R4', '--'))
 
@@ -245,11 +254,11 @@ elc_htmldata <- function(plotdata,
     arrange(order) %>%
     mutate(color = ifelse(is.na(eval),
                           colors[1],
-                          ifelse(out3s | warn,
+                          ifelse(out3s | out2s | warn,
                                  colors[4],
                                  ifelse(drift | bias,
                                         colors[3], colors[2]))),
-           size = ifelse(out3s | warn | drift | bias,
+           size = ifelse(out3s | out2s | warn | drift | bias,
                          1.5 * base_size,
                          base_size))
 

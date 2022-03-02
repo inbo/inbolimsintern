@@ -90,6 +90,29 @@ qcc_rule05 <- function(x, lcl_2s, ucl_2s, run = 3){
   }
 }
 
+#'Rule5b: variation on Rule5: 2 consecutive points more than 2 sigma on same side
+#'
+#' @param x numeric vector of lab results
+#' @param lcl_2s 2-sigma lower limit
+#' @param ucl_2s 2-sigma upper limit
+#' @param run (run - 1) violations on run more than 2 sigma in the same direction
+#' @importFrom zoo rollapply
+#' @return TRUE if rule violated
+#' @export
+qcc_rule05b <- function(x, lcl_2s, ucl_2s, run = 2) {
+  if (length(x) < run) {
+    return(rep(FALSE, length(x)))
+  } else {
+    base_data <- zoo::rollapply(x, run, FUN = function(x) x, fill = c(NA, NA, NA),
+                                align = "right", partial = FALSE)
+    return(apply(base_data, 1, function(y){
+      v_upp <- sum(y >= ucl_2s, na.rm = TRUE)
+      v_low <- sum(y <= lcl_2s, na.rm = TRUE)
+      (v_low >= run) | (v_upp >= run)
+    }) )
+  }
+}
+
 #'Rule6: 4 out of 5 consecutive points are more than 1 sigma from the center line in the same direction
 #'
 #' @param x numeric vector of lab results
