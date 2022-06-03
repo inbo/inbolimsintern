@@ -21,7 +21,7 @@ elc_fixlim_data(
 \item{digits}{aantal cijfers na de komma behouden}
 }
 \value{
-
+dataset met alle nodige info om de figuur na te maken zonder berekeningen
 }
 \description{
 Genereer ELC data om te archiveren als plot in de lims db

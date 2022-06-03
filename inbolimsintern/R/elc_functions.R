@@ -158,7 +158,7 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
     arrange(FIRST_ENTRY)
   n_batch <- nrow(batchvolgorde)
   batches_to_keep <- batchvolgorde[max(1, n_batch - keep + 1):n_batch, , drop = FALSE]
-  batches_to_keep <- batches_to_keep %>% mutate(batchnr = 1:nrow(batches_to_keep))
+  batches_to_keep <- batches_to_keep %>% mutate(BATCHNR = 1:nrow(batches_to_keep))
 
   plotdata <- plotdata %>%
     inner_join(batches_to_keep) %>%
@@ -257,7 +257,7 @@ elc_fixlim_data <- function(plotdata,
 #' @param expected_value indien NULL berekend uit de data, anders wordt deze gebruikt
 #' @param expected_sd indien NULL berekend uit de data, anders wordt deze gebruikt
 #' @param digits aantal digits te printen in de html
-#' @param integrate_borders moeten de grenzen direct ook aan de plotdata toegevoegd worden in plaats van enkel te bewaren in het borders item van de lijst. Indien TRUE dan komen de kolommen lcl3s, lcl2s, lcl1s, cl_base, ucl1s, ucl2s en ucl3s als kolommen in het plot item in de lijst
+#' @param check_rules moeten de grenzen berekend worden of zitten die al als kolom in de data
 #'
 #' @return lijst met 4 datasets: plot, borders, summary en tabel
 #' @export
@@ -267,13 +267,17 @@ elc_htmldata <- function(plotdata,
                          expected_value = NULL,
                          expected_sd = NULL,
                          digits = 5,
-                         integrate_borders = TRUE
+                         check_rules = TRUE
                          ) {
+  if (check_rules) {
+
+  }
+
   data <- plotdata %>%
-    arrange(batchnr, ORDER_NUMBER) %>%
-    mutate(check_rules = !duplicated(batchnr),
-           order = 1:nrow(plotdata),
-           waarde = as.numeric(ENTRY))
+    arrange(BATCHNR, ORDER_NUMBER) %>%
+    mutate(CHECK_RULES = !duplicated(BATCHNR),
+           ORDER = 1:nrow(plotdata),
+           ENTRY = as.numeric(ENTRY))
   #neem de limieten van de maximale product versie die in de data aanwezig is
   certified <- mean(data$C_CERTIFIED_VALUE[data$VERSION == max(data$VERSION)])
   certified_sd <- mean(data$C_CERTIFIED_SD[data$VERSION == max(data$VERSION)])
@@ -291,74 +295,69 @@ elc_htmldata <- function(plotdata,
 
   #Gebruik enkel het eerste punt in een batch van een QC staal voor de berekening
   checkdata <- data %>%
-    filter(check_rules == TRUE) %>%
-    select(order, waarde)
-  values <- checkdata$waarde
+    filter(CHECK_RULES == TRUE) %>%
+    select(ORDER, ENTRY)
+  values <- checkdata$ENTRY
 
   #SOP_033 R1: 1x buiten 3s (out3s)
-  checkdata$out3s <- qcc_rule01(values,
+  checkdata$OUT3S <- qcc_rule01(values,
                                 ctr_x - 3 * ctr_sd,
                                 ctr_x + 3 * ctr_sd,
                                 run = 1)
   #SOP_033 R2: 2 op 3 buiten 2s aan dezelfde kant (warn)
-  checkdata$warn  <- qcc_rule05(values,
+  checkdata$WARN  <- qcc_rule05(values,
                                 ctr_x - 2 * ctr_sd,
                                 ctr_x + 2 * ctr_sd,
                                 run = 3)
 
   #SOP_033 R2a: 2 op 2 buiten 2s aan dezelfde kant (out2s)
-  checkdata$out2s  <- qcc_rule05b(values,
+  checkdata$OUT2S  <- qcc_rule05b(values,
                                 ctr_x - 2 * ctr_sd,
                                 ctr_x + 2 * ctr_sd,
                                 run = 2)
 
 
   #SOP_033 R4: 6 opeenvolgende stijgend of dalend (drift)
-  checkdata$drift <- qcc_rule03(values,
+  checkdata$DRIFT <- qcc_rule03(values,
                                 run = 6)
   #SOP_033 R3: 9 opeenvolgende aan zelfde kant gemiddelde  (bias)
-  checkdata$bias  <- qcc_rule02(values,
+  checkdata$BIAS  <- qcc_rule02(values,
                                 ctr_x,
                                 run = 9)
-  checkdata$eval <- paste0(ifelse(checkdata$out3s, 'R1', '--'),
-                           #ifelse(checkdata$warn,  'R2', '--'), afw tov iso
-                           ifelse(checkdata$out2s,  'R2', '--'), #keuze labo
-                           ifelse(checkdata$bias,  'R3', '--'),
-                           ifelse(checkdata$drift, 'R4', '--'))
+  checkdata$EVAL <- paste0(ifelse(checkdata$OUT3S, 'R1', '--'),
+                           #ifelse(checkdata$WARN,  'R2', '--'), afw tov iso
+                           ifelse(checkdata$OUT2S,  'R2', '--'), #keuze labo
+                           ifelse(checkdata$BIAS,  'R3', '--'),
+                           ifelse(checkdata$DRIFT, 'R4', '--'))
 
   chart_mean = mean(values)
   chart_sd = sd(values)
 
   #Maak de data klaar voor de plot
   subdata <- data %>%
-    left_join(checkdata, by = c("order", "waarde")) %>%
-    arrange(order) %>%
-    mutate(color = ifelse(is.na(eval),
+    left_join(checkdata, by = c("ORDER", "ENTRY")) %>%
+    arrange(ORDER) %>%
+    mutate(COLOR = ifelse(is.na(EVAL),
                           colors[1],
-                          ifelse(out3s | out2s,
+                          ifelse(OUT3S | OUT2S,
                                  colors[4],
-                                 ifelse(drift | bias,
+                                 ifelse(DRIFT | BIAS,
                                         colors[3], colors[2]))),
-           size = ifelse(out3s | out2s | drift | bias,
+           SIZE = ifelse(OUT3S | OUT2S | DRIFT | BIAS,
                          1.5 * base_size,
-                         base_size))
-
-  if (integrate_borders) {
-    subdata <- subdata %>%
-      mutate(lcl3s = s_borders$val[s_borders$lim == -3],
-             lcl2s = s_borders$val[s_borders$lim == -2],
-             lcl1s = s_borders$val[s_borders$lim == -1],
-             cl_base = s_borders$val[s_borders$lim == 0],
-             ucl1s = s_borders$val[s_borders$lim == 1],
-             ucl2s = s_borders$val[s_borders$lim == 2],
-             ucl3s = s_borders$val[s_borders$lim == 3]
-             )
-  }
+                         base_size),
+           SIZE = ifelse(is.na(SIZE), base_size, SIZE),
+           LCL3S = s_borders$val[s_borders$lim == -3],
+           LCL2S = s_borders$val[s_borders$lim == -2],
+           LCL1S = s_borders$val[s_borders$lim == -1],
+           UCL1S = s_borders$val[s_borders$lim == 1],
+           UCL2S = s_borders$val[s_borders$lim == 2],
+           UCL3S = s_borders$val[s_borders$lim == 3])
 
   #Maak de tabel die in de html verschijnt
   htmldata <- subdata %>%
-    transmute(BATCH, TEXT_ID, waarde = round(waarde, 5), UNITS,
-              eval = ifelse(is.na(eval), ".", eval))
+    transmute(BATCH, TEXT_ID, ENTRY = round(ENTRY, digits), UNITS,
+              EVAL = ifelse(is.na(EVAL), ".", EVAL))
 
 
   #maak tabel met data die tussen plot en tabel komt

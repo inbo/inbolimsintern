@@ -161,7 +161,8 @@ write_archive_data <- function(conn, data) {
     mutate(ACTIVE = 'T')
 
   print(colnames(data))
-  dbAppendTable(conn, "C_CTR_ARCHIVE", data)
+  dbAppendTable(conn, "C_CTR_ARCHIVE",
+                data %>% select(-ROWNR, -FIRST_BATCH_ENTRY))
 }
 
 write_archive_data(conn, all_archive_data)
