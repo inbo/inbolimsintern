@@ -171,6 +171,84 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
 
 ####################################################
 
+#' Genereer ELC data om te archiveren als plot in de lims db
+#'
+#' @param plotdata te plotten data die BATCHNR, ORDER, ENTRY bevat
+#' @param colors basiskleuren voor de kaart
+#' @param base_size basisgroote van de bollen
+#' @param digits aantal cijfers na de komma behouden
+#'
+#' @return dataset met alle nodige info om de figuur na te maken zonder berekeningen
+#' @export
+elc_fixlim_data <- function(plotdata,
+                            colors = c("lightblue3", "green4", "orange", "red", "blue4"),
+                            base_size = 1.5,
+                            digits = 5) {
+  data <- plotdata %>%
+    arrange(BATCHNR, ORDER_NUMBER) %>%
+    mutate(ORDER = 1:nrow(.),
+           ENTRY = as.numeric(ENTRY),
+           LCL3S = C_CTR_X - 3 * C_CTR_SD,
+           LCL2S = C_CTR_X - 2 * C_CTR_SD,
+           LCL1S = C_CTR_X - 1 * C_CTR_SD,
+           UCL1S = C_CTR_X + 1 * C_CTR_SD,
+           UCL2S = C_CTR_X + 2 * C_CTR_SD,
+           UCL3S = C_CTR_X + 3 * C_CTR_SD)
+
+  checkdata <- data %>%
+    filter(IN_STAT == TRUE) %>%
+    select(ORDER, ENTRY, LCL3S, UCL3S, LCL2S,UCL2S)
+
+  #SOP_033 R1: 1x buiten 3s (out3s)
+  checkdata$OUT3S <- qcc_rule01(checkdata %>% pull(ENTRY),
+                                checkdata %>% pull(LCL3S),
+                                checkdata %>% pull(UCL3S),
+                                run = 1)
+
+  #SOP_033 R2a: 2 op 2 buiten 2s aan dezelfde kant (out2s)
+  #ipv C_CTR_X hier (UCL_2S - UCL_2S)/2 om zo C_CTR_X niet mee te moeten nemen
+  checkdata$OUT2S  <- qcc_rule05b(checkdata %>% pull(ENTRY),
+                                  checkdata %>% pull(LCL2S),
+                                  0.5 * checkdata %>% pull(UCL2S) -
+                                  0.5 * checkdata %>% pull(UCL2S),
+                                  run = 2)
+
+  #SOP_033 R4: 6 opeenvolgende stijgend of dalend (drift)
+  checkdata$DRIFT <- qcc_rule03(checkdata %>% pull(ENTRY),
+                                run = 6)
+  #SOP_033 R3: 9 opeenvolgende aan zelfde kant gemiddelde  (bias)
+  checkdata$BIAS  <- qcc_rule02(checkdata %>% pull(ENTRY),
+                                0.5 * checkdata %>% pull(UCL2S) -
+                                0.5 * checkdata %>% pull(UCL2S),
+                                run = 9)
+  checkdata$EVAL <- paste0(ifelse(checkdata$OUT3S, 'R1', '--'),
+                           ifelse(checkdata$OUT2S, 'R2', '--'), #keuze labo
+                           ifelse(checkdata$BIAS,  'R3', '--'),
+                           ifelse(checkdata$DRIFT, 'R4', '--'))
+
+  subdata <- data %>%
+    left_join(checkdata, by = c("ORDER", "ENTRY",
+                                "LCL3S", "UCL3S",
+                                "LCL2S", "UCL2S")) %>%
+    arrange(ORDER) %>%
+    mutate(COLOR = ifelse(is.na(EVAL),
+                          colors[1],
+                          ifelse(OUT3S | OUT2S,
+                                 colors[4],
+                                 ifelse(DRIFT | BIAS,
+                                        colors[3], colors[2]))),
+           SIZE = ifelse(is.na(OUT3S),
+                         base_size,
+                         ifelse(OUT3S | OUT2S | DRIFT | BIAS,
+                         1.5 * base_size, base_size)))
+  subdata
+
+}
+
+
+####################################################
+
+
 #' Maak data aan voor elc shewhart html
 #'
 #' @param plotdata dataset typisch van get_ELC_data
@@ -179,6 +257,7 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
 #' @param expected_value indien NULL berekend uit de data, anders wordt deze gebruikt
 #' @param expected_sd indien NULL berekend uit de data, anders wordt deze gebruikt
 #' @param digits aantal digits te printen in de html
+#' @param integrate_borders moeten de grenzen direct ook aan de plotdata toegevoegd worden in plaats van enkel te bewaren in het borders item van de lijst. Indien TRUE dan komen de kolommen lcl3s, lcl2s, lcl1s, cl_base, ucl1s, ucl2s en ucl3s als kolommen in het plot item in de lijst
 #'
 #' @return lijst met 4 datasets: plot, borders, summary en tabel
 #' @export
@@ -187,7 +266,9 @@ elc_htmldata <- function(plotdata,
                          base_size = 1.5,
                          expected_value = NULL,
                          expected_sd = NULL,
-                         digits = 5) {
+                         digits = 5,
+                         integrate_borders = TRUE
+                         ) {
   data <- plotdata %>%
     arrange(batchnr, ORDER_NUMBER) %>%
     mutate(check_rules = !duplicated(batchnr),
@@ -262,10 +343,23 @@ elc_htmldata <- function(plotdata,
                          1.5 * base_size,
                          base_size))
 
+  if (integrate_borders) {
+    subdata <- subdata %>%
+      mutate(lcl3s = s_borders$val[s_borders$lim == -3],
+             lcl2s = s_borders$val[s_borders$lim == -2],
+             lcl1s = s_borders$val[s_borders$lim == -1],
+             cl_base = s_borders$val[s_borders$lim == 0],
+             ucl1s = s_borders$val[s_borders$lim == 1],
+             ucl2s = s_borders$val[s_borders$lim == 2],
+             ucl3s = s_borders$val[s_borders$lim == 3]
+             )
+  }
+
   #Maak de tabel die in de html verschijnt
   htmldata <- subdata %>%
     transmute(BATCH, TEXT_ID, waarde = round(waarde, 5), UNITS,
               eval = ifelse(is.na(eval), ".", eval))
+
 
   #maak tabel met data die tussen plot en tabel komt
   summarydata <- data.frame(param = c("gem", "sd"),
@@ -306,34 +400,47 @@ elc_htmldata <- function(plotdata,
 #' ELC_shewhart_plot(subdata, borders, max_s_plot = 0)
 #' }
 #'
-ELC_shewhart_plot <- function(subdata, borders,
+ELC_shewhart_plot <- function(subdata, borders = NULL,
                               base_color = "lightblue3",
                               max_s_plot = 5) {
+  colnames(subdata) <- toupper(colnames(subdata))
+  if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE
 
-  evaldata <- subdata %>% filter(!is.na(eval))
+  if (is.null(borders)) {
+    borders <- data.frame(lim = -3:3,
+                          val = c(max(subdata$LCL3S), max(subdata$LCL2S),
+                                  max(subdata$LCL1S), max(subdata$C_CTR_X),
+                                  max(subdata$UCL1S), max(subdata$UCL2S),
+                                  max(subdata$UCL3S)),
+                          color = c("red", "orange", "green4", "blue4",
+                                    "green4", "orange", "red"))
+  }
+  evaldata <- subdata %>% filter(!is.na(EVAL))
   zoom_y <- FALSE
   if (max_s_plot > 0 & !(is.na(max_s_plot))) {
     s1 <- borders[borders$lim == 1, "val"] - borders[borders$lim == 0, "val"]
     smin <- borders[borders$lim == 0, "val"] - max_s_plot *s1
     smax <- borders[borders$lim == 0, "val"] + max_s_plot *s1
 
-    if (any(subdata$waarde>smax, na.rm = TRUE) | any(subdata$waarde<smin, na.rm = TRUE)) {
+    if (any(subdata$ENTRY > smax, na.rm = TRUE) |
+        any(subdata$ENTRY < smin, na.rm = TRUE)) {
       zoom_y <-  TRUE
     }
   }
+
   p <-
-    ggplot(subdata, aes(x = batchnr, y = waarde)) +
-    geom_point(colour = subdata$color) +
-    geom_path(data = evaldata, aes(x = batchnr, y = waarde), colour = base_color) +
-    geom_point(data = evaldata, aes(x = batchnr, y = waarde),
-               colour = evaldata$color) +
+    ggplot(subdata, aes(x = BATCHNR, y = ENTRY)) +
+    geom_point(colour = subdata$COLOR) +
+    geom_path(data = evaldata, aes(x = BATCHNR, y = ENTRY), colour = base_color) +
+    geom_point(data = evaldata, aes(x = BATCHNR, y = ENTRY),
+               colour = evaldata$COLOR) +
     geom_hline(data = borders, aes(yintercept = val),
                colour = borders$color) +
-    scale_x_continuous(breaks = evaldata$batchnr,
+    scale_x_continuous(breaks = evaldata$BATCHNR,
                        labels = evaldata$BATCH) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     ylab(paste0("Waarde [", max(subdata$UNITS), "]")) + xlab("") +
-    ggtitle(subdata$combi[1])
+    ggtitle(subdata$COMBI[1])
   if (zoom_y){
     p <- p + coord_cartesian(ylim = c(smin, smax))
   }

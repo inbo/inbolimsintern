@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -23,6 +23,10 @@ cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 try({
   sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
+  archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
+   if (class(archive_label == 'try-error')) {
+     archive_label <- NULL
+   }
 }, outFile = logfile)
 
 ## Data
@@ -54,7 +58,7 @@ cat("<H1>Leeswijzer</H1>",
 "\n", sep = "\n", file = htmlfile, append = TRUE)
 
 ## Loop through each sample_name, component combination
-
+archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
 for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
@@ -62,7 +66,10 @@ for (comb in combis) {
   cat("\n", comb, file = logfile, append = TRUE)
 
   plotdata <- alldata %>% filter(comb == combi)
-  htmldata <- elc_htmldata(plotdata)
+  htmldata <- elc_htmldata(plotdata, integrate_borders = TRUE)
+  if (!is.null(archive_label)) {
+    archive_data <- rbind(archive_data, htmldata$plot)
+  }
   p <- ELC_shewhart_plot(subdata = htmldata[["plot"]], htmldata[['borders']] )
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 300)
 
@@ -92,6 +99,12 @@ for (comb in combis) {
 
   cat(paste0("\neinde van ", comb), file = logfile, append = TRUE)
 }
+
+#bewaren in db archieftabel
+#if (!is.null(archive_label)) {
+#  archive_data$LABEL <-  archive_label
+#  dbAppendTable(conn, name = "C_CTR_ARCHIVE", value = archive_data )
+#}
 
 #Afronden file en html tonen
 cat('\n</BODY></HTML>', file = htmlfile, append = TRUE)

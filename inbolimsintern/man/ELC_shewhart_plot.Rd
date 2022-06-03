@@ -4,7 +4,12 @@
 \alias{ELC_shewhart_plot}
 \title{Plot ELC shewhart plot}
 \usage{
-ELC_shewhart_plot(subdata, borders, base_color = "lightblue3", max_s_plot = 5)
+ELC_shewhart_plot(
+  subdata,
+  borders = NULL,
+  base_color = "lightblue3",
+  max_s_plot = 5
+)
 }
 \arguments{
 \item{subdata}{data om te plotten met kolommen batchnr, waarde, color, size}
