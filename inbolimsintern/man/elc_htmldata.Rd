@@ -11,7 +11,7 @@ elc_htmldata(
   expected_value = NULL,
   expected_sd = NULL,
   digits = 5,
-  integrate_borders = TRUE
+  check_rules = TRUE
 )
 }
 \arguments{
@@ -27,7 +27,7 @@ elc_htmldata(
 
 \item{digits}{aantal digits te printen in de html}
 
-\item{integrate_borders}{moeten de grenzen direct ook aan de plotdata toegevoegd worden in plaats van enkel te bewaren in het borders item van de lijst. Indien TRUE dan komen de kolommen lcl3s, lcl2s, lcl1s, cl_base, ucl1s, ucl2s en ucl3s als kolommen in het plot item in de lijst}
+\item{check_rules}{moeten de grenzen berekend worden of zitten die al als kolom in de data}
 }
 \value{
 lijst met 4 datasets: plot, borders, summary en tabel

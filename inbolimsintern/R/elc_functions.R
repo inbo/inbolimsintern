@@ -40,6 +40,14 @@ calc_elc_stats <- function(x){
 }
 
 #############################################################
+#' Voer een t en F test uit
+#'
+#' @param x waarden
+#' @param years verschillende periodes
+#'
+#' @return dataset met t en F test resultaten
+#' @export
+#'
 compare_with_tf <- function(x, years){
   x0 <- x$value[x$jaar == years[4]]
   xmin1 <- x$value[x$jaar == years[3]]
