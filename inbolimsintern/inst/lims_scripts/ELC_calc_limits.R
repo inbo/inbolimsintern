@@ -12,7 +12,7 @@ logfile <- logfile_start(prefix = "ELC_CALC_LIMITS")
 writeLines(con = logfile, paste0("ELC_CALC_LIMITS\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1748 #call_id <- 3728 #vernieuwde query
+call_id <- 0 #call_id <- 1748 #call_id <- 3728 #vernieuwde query call_id <- 4994
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])

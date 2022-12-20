@@ -10,7 +10,8 @@ elc_htmldata(
   base_size = 1.5,
   expected_value = NULL,
   expected_sd = NULL,
-  digits = 5
+  digits = 5,
+  check_rules = TRUE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ elc_htmldata(
 \item{expected_sd}{indien NULL berekend uit de data, anders wordt deze gebruikt}
 
 \item{digits}{aantal digits te printen in de html}
+
+\item{check_rules}{moeten de grenzen berekend worden of zitten die al als kolom in de data}
 }
 \value{
 lijst met 4 datasets: plot, borders, summary en tabel

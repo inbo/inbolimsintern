@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3814
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -23,6 +23,10 @@ cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 try({
   sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
+  archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
+   if (class(archive_label == 'try-error')) {
+     archive_label <- NULL
+   }
 }, outFile = logfile)
 
 ## Data
@@ -34,6 +38,14 @@ htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 alldata <- get_ELC_data(conn, sqlfile, keep = 30)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 combis <- unique(alldata$combi)
+
+# ggplot(alldata %>% mutate(LCL3S = C_CTR_X - 3 * C_CTR_SD,
+#                           UCL3S = C_CTR_X + 3 * C_CTR_SD),
+#        aes(x = BATCHNR, y = as.numeric(ENTRY))) + geom_point(pch=1) +
+#   geom_line(aes(y = C_CTR_X), color = "green4") +
+#   geom_line(aes(y = UCL3S) , color = "red") +
+#   geom_line(aes(y = LCL3S) , color = "red") +
+#   facet_wrap(SAMPLE_NAME~NAME, scales = "free_y")
 
 ## INIT html
 
@@ -54,7 +66,7 @@ cat("<H1>Leeswijzer</H1>",
 "\n", sep = "\n", file = htmlfile, append = TRUE)
 
 ## Loop through each sample_name, component combination
-
+archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
 for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
@@ -63,7 +75,8 @@ for (comb in combis) {
 
   plotdata <- alldata %>% filter(comb == combi)
   htmldata <- elc_htmldata(plotdata)
-  p <- ELC_shewhart_plot(subdata = htmldata[["plot"]], htmldata[['borders']] )
+
+  p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 300)
 
   cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
@@ -71,7 +84,7 @@ for (comb in combis) {
       file = htmlfile, append = TRUE)
   cat(knitr::kable(htmldata[['summary']], format = "html"),
       file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['tabel']] %>% filter(eval != "."),
+  cat(knitr::kable(htmldata[['tabel']] %>% filter(EVAL != "."),
                    format = "html"),
       file = htmlfile, append = TRUE)
   fxavg <- htmldata[['summary']] %>% filter(param == "gem") %>% pull(ctr_fix)
@@ -79,8 +92,8 @@ for (comb in combis) {
   mx <- fxavg + 3 * fxsd
   mn <- fxavg - 3 * fxsd
   noncalcout3s <- htmldata[['tabel']] %>%
-    filter(eval == ".",
-           waarde > mx | waarde < mn)
+    filter(EVAL == ".",
+           ENTRY > mx | ENTRY < mn)
   if (nrow(noncalcout3s)> 0) {
     cat("<h3>Niet weergegeven waarden buiten 3s</h3><p>",
         file = htmlfile, append = TRUE)
