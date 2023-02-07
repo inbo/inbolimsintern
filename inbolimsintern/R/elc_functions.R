@@ -1,181 +1,120 @@
-#' Bereken de ELC basisstatistieken van een numerieke kolom
+#' Krijg basisstatistieken
 #'
-#' @param x numerieke vector met waarden
+#' @param x vector with results
+#' @param keuze character vector with stats to be calculated (n, nas, mean, sd, se, median, min, max, q.025, q.975,q.25,q.75
+#' )
 #'
-#' @return data.frame met basisstatistieken
+#' @return
+#' named vector with the statistics
 #' @export
 #'
-calc_elc_stats <- function(x){
-  Norig   <- length(x)
-  avgorig <- mean(x, na.rm = TRUE)
-  sdorig  <- sd(x, na.rm = TRUE)
-  not_all_in_3s <- TRUE
-  n <- Norig
-  avg = avgorig
-  sd = sdorig
-  x1 <- x
-  #print(x1)
-
-  while(not_all_in_3s & n > 3) {
-    n = length(x1)
-    avg <- mean(x1, na.rm = TRUE)
-    sd  <- sd(x1, na.rm = TRUE)
-    min3s <- avg - 3*sd
-    max3s <- avg + 3*sd
-    if (all(na.omit(x1) <= max3s) & all(na.omit(x1) >= min3s)) {
-      not_all_in_3s <- FALSE
-    } else {
-      del <- which.max(abs(x1 - avg))
-      x1 <- x1[-del]
-    }
-  }
-  data.frame(N_all = Norig,
-             Avg_all = avgorig,
-             Sd_all = sdorig,
-             N_used = n,
-             Avg = avg,
-             Sd = sd,
-             min3s = avg - 3*sd,
-             max3s = avg + 3*sd)
+#' @examples
+#' x <- rnorm(100)
+#' get_base_stats(x, keuze = c("n", "mean", "sd"))
+get_base_stats <- function(x, keuze = c("n", "nas", "mean", "sd")) {
+  nas <- sum(is.na(x))
+  n <- length(x)
+  sd <- sd(x, na.rm = TRUE)
+  se <- sd/sqrt(n)
+  minimum <- min(x)
+  maximum <- max(x)
+  q.025 <- quantile(x, prob = 0.025)
+  q.975 <- quantile(x, prob = 0.975)
+  q.25 <- quantile(x, prob = 0.25)
+  q.75 <- quantile(x, prob = 0.75)
+  avg <- mean(x, na.rm = TRUE)
+  rv <- c(n = n, nas = nas, mean = avg, sd = sd, se = se, min = minimum, max = maximum,
+          q.025 = q.025, q.975 = q.975, q.25 = q.25, q.75 = q.75)
+  rv[keuze]
 }
 
-#############################################################
-#' Voer een t en F test uit
+#' Verwijder waarden buiten een vooropgesteld aantal sigmas
 #'
-#' @param x waarden
-#' @param years verschillende periodes
+#' @param x vector of numerical values
+#' @param nsigma numeric value containing the n-sigma values should be removed
 #'
-#' @return dataset met t en F test resultaten
+#' @return vector without outliers
 #' @export
 #'
-compare_with_tf <- function(x, years){
-  x0 <- x$value[x$jaar == years[4]]
-  xmin1 <- x$value[x$jaar == years[3]]
-  xmin2 <- x$value[x$jaar == years[2]]
-  xmin3 <- x$value[x$jaar == years[1]]
-  print(c(length(x0), length(xmin1), length(xmin2), length(xmin3)))
-  #de vorige jaren worden verder gecombineerd zodat de vergelijkingen zijn:
-  #x0 vs xmin1
-  #x0 vs c(xmin1, xmin2)
-  #x0 vs c(xmin1, xmin2, xmin3)
-  #op voorwaarde dat beide kanten minstens 10 observaties hebben
+#' @examples
+#' x <- rnorm(100000)
+#' length(remove_outliers(x))
+remove_outliers <- function(x, nsigma = 3) {
+  x <- x[!is.na(x)]
+  repeat {
+    avg <- mean(x)
+    sd <- sd(x)
+    if(is.na(sd)) return(x)
+    rv <- x[(x >= avg - 3 * sd) & (x <= avg + 3 * sd)]
 
-  if (length(x0) >= 10 & length(xmin1) >= 10 ) {
-    print(x0)
-    print(xmin1)
-    ttest1 <- try(t.test(x0, xmin1))
-    ftest1 <- try(var.test(x0, xmin1))
-    t1 <- ifelse(class(ttest1) == "try-error", NA, ttest1$p.value)
-    f1 <- ifelse(class(ftest1) == "try-error", NA, ftest1$p.value)
-  } else {
-    t1 <- f1 <- NA
+    if (length(rv) == length(x)) break
+    x <- rv
   }
-  if (length(x0) >= 10 & length(c(xmin1,xmin2)) >= 10 ) {
-    ttest2 <- try(t.test(x0, c(xmin1,xmin2)))
-    ftest2 <- try(var.test(x0, c(xmin1,xmin2)))
-    t2 <- ifelse(class(ttest2) == "try-error", NA, ttest2$p.value)
-    f2 <- ifelse(class(ftest2) == "try-error", NA, ftest2$p.value)
-  } else {
-    t2 <- f2 <- NA
-  }
-  if (length(x0) >= 10 & length(c(xmin1, xmin2, xmin3)) >= 10 ) {
-    ttest3 <- try(t.test(x0, c(xmin1, xmin2, xmin3)))
-    ftest3 <- try(var.test(x0, c(xmin1, xmin2, xmin3)))
-    t3 <- ifelse(class(ttest3) == "try-error", NA, ttest3$p.value)
-    f3 <- ifelse(class(ftest3) == "try-error", NA, ftest3$p.value)
-  } else {
-    t3 <- f3 <- NA
-  }
-
-  rv <- data.frame(t1, f1, t2, f2, t3, f3)
-  colnames(rv) <- c(paste0(c("pval_t_", "pval_F_"), paste0(years[4], "-", years[3])),
-                    paste0(c("pval_t_", "pval_F_"), paste0(years[4], "-", years[2])),
-                    paste0(c("pval_t_", "pval_F_"), paste0(years[4], "-", years[1])))
   rv
 }
 
-
-
-
-
-#' Lijst alle controlestalen waarvoor limieten bestaan op binnen de gekozen periode
+#' Calculate stats for ELC Yearchart
 #'
-#' @param conn connectie naar db object
-#' @param min_date vroegste beschouwde datum yyyy-mm-dd
-#' @param max_date laatst beschouwde datum yyyy-mm-dd
+#' @param data dataset in the specific format used in elc periodic
 #'
-#' @return dataset met alle resultaatinformatie voor de geselecteerde controlestalen
+#' @return dataset with base stats like n, mean sd, the same qfter removing outliers en the vqlues the previous period
 #' @export
 #'
-list_all_qc_data <- function(conn, min_date = "2020-01-01", max_date = "2021-01-01") {
-  sql <- paste0(
-    "select
-  s.SAMPLE_NUMBER, s.TEXT_ID, s.SAMPLE_TYPE, s.SAMPLE_NAME,
-  s.PRODUCT, s.PRODUCT_VERSION,
-  bo.BATCH, bo.ORDER_NUMBER,
-  r.ANALYSIS, r.NAME, r.ENTRY, r.ENTERED_ON, r.UNITS,
-  ps.C_CERTIFIED_VALUE, ps.C_CERTIFIED_SD,
-  ps.C_CTR_X, ps.C_CTR_SD, ps.MIN_VALUE, ps.MAX_VALUE,
-  c.C_QC,
-  qcs.C_QC_CTR_CHART,
-  v.VERSION as ANALYSIS_VERSION
-  from test t
-  inner join result r on r.test_number = t.test_number
-  inner join sample s on s.sample_number = t.sample_number
-  inner join PRODUCT_SPEC ps on ps.PRODUCT = s.PRODUCT
-  and ps.VERSION = s.PRODUCT_VERSION and s.PRODUCT_GRADE = ps.GRADE and ps.ANALYSIS = t.ANALYSIS and ps.COMPONENT = r.NAME
-  inner join component c on c.NAME = ps.COMPONENT
-  and c.ANALYSIS = ps.ANALYSIS
-  inner join versions v on v.TABLE_NAME = 'ANALYSIS'
-  and v.NAME = c.ANALYSIS
-  and v.VERSION = c.VERSION
-  inner join batch_objects bo on bo.OBJECT_ID = t.TEST_NUMBER
-  inner join QC_SAMPLES qcs on qcs.NAME = s.PRODUCT_GRADE
-  where r.ENTRY is not null
-  and s.SAMPLE_TYPE is not null
-  and s.SAMPLE_TYPE <> 'DUP'
-  and r.ENTERED_ON > '", min_date, "'",
-    " and ENTERED_ON <= '", max_date, "'",
-  " and r.STATUS in ('E', 'M', 'A')
-  and c.C_QC = 'T'
-  and qcs.C_QC_CTR_CHART = 'T'")
-  cat(sql)
-  DBI::dbGetQuery(conn, sql)
+calculate_elc_periodic_stats <- function(data) {
+  aantallen <- data %>% filter(!is.na(PERIOD)) %>% group_by(PERIOD) %>% summarise(aantal = n())
+  data_last <- data %>% filter(PERIOD == "LAST")
+
+
+  #indien geen data het laatste jaar, stop de routine en vult ook niets in voor de voorgaande jaren
+  if (!nrow(data_last)) {
+    return(data.frame(n_orig = NA, mean_orig = NA, sd_orig = NA,
+                      n = 0, mean = NA, sd = NA,
+                      pval_t = NA, pval_f = NA,
+                      n_prev = NA, mean_prev = NA, sd_prev = NA))
+  }
+
+  #data vorig vorige periode (evenveel elementen als laatste periode)
+  data_prev <- data %>% filter(PERIOD != "LAST") %>%
+    arrange(rownr) %>%
+    slice_tail(n = aantallen %>% filter(PERIOD == "LAST") %>% pull(aantal))
+
+  #bereken eigenschappen zonder waarden buiten 3s weg te gooien
+  stats_last <- get_base_stats(data_last$VALUE)
+
+  #itereer tot alle waarden binnen 3s liggen
+  kept_values_last <- remove_outliers(data_last$VALUE)
+  kept_values_prev <- remove_outliers(data_prev$VALUE)
+  stats_last_cleaned <- get_base_stats(kept_values_last)
+  stats_prev_cleaned <- get_base_stats(kept_values_prev)
+
+  #neem de laatste waarden (evenveel als het laatste jaar) uit de vorige 2 periodes
+  #haal hier ook alle waarden buiten 3s weg
+
+  if (nrow(data_prev) < (nrow(data_last) - 3) | nrow(data_last) < 10) { #indien te weinig waarnemingen, doe geen test
+    pval_t = NA
+    pval_f = NA
+  } else {
+    pval_t <- t.test  (kept_values_last, kept_values_prev)$p.value
+    pval_f <- var.test(kept_values_last, kept_values_prev)$p.value
+  }
+  stats_prev <- get_base_stats(data_last$VALUE[stats_last["n"]])
+  data.frame(n_orig = round(stats_last["n"]),
+             mean_orig = round(stats_last["mean"],4),
+             sd_orig = round(stats_last["sd"],4),
+             n = round(stats_last_cleaned["n"]),
+             mean = round(stats_last_cleaned["mean"],4),
+             sd = round(stats_last_cleaned["sd"],4),
+             pval_t = round(pval_t,5),
+             pval_f = round(pval_f,5),
+             n_prev = round(stats_prev_cleaned["n"]),
+             mean_prev = round(stats_prev_cleaned["mean"],4),
+             sd_prev = round(stats_prev_cleaned["sd"],4))
 }
 
-#' Verkrijg de ELC data
-#'
-#' @param dbcon dbconnection object (DBI)
-#' @param sqlfile path naar de file die de sql code bevat
-#' @param keep aantal batches te behouden voor de figuur
-#'
-#' @return dataset met alle te verwerken gegevens
-#' @export
-get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
-  sqlcode <- readLines(sqlfile)
-  sqlcode <- paste(sqlcode, collapse = "\n")
 
-  qry = "select NAME, MaxVersion = max(VERSION) from PRODUCT group by NAME"
-  productVersions = DBI::dbGetQuery(dbcon, qry)
-  cat(sqlcode)
 
-  plotdata <- DBI::dbGetQuery(dbcon, sqlcode)
-  batchvolgorde <- plotdata %>%
-    group_by(BATCH) %>%
-    summarize(FIRST_ENTRY = min(ENTERED_ON)) %>%
-    arrange(FIRST_ENTRY)
-  n_batch <- nrow(batchvolgorde)
-  batches_to_keep <- batchvolgorde[max(1, n_batch - keep + 1):n_batch, , drop = FALSE]
-  batches_to_keep <- batches_to_keep %>% mutate(BATCHNR = 1:nrow(batches_to_keep))
 
-  plotdata <- plotdata %>%
-    inner_join(batches_to_keep) %>%
-    mutate(combi = paste(ANALYSIS, SAMPLE_NAME, NAME, sep = "---")) %>%
-    arrange(FIRST_ENTRY, BATCH, ORDER_NUMBER)
 
-  attr(plotdata, "sqlcode") <- sqlcode
-  plotdata
-}
 
 ####################################################
 
@@ -422,7 +361,7 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                           color = c("red", "orange", "green4", "blue4",
                                     "green4", "orange", "red"))
   }
-  evaldata <- subdata %>% filter(!is.na(EVAL))
+  evaldata <- subdata %>% filter(!is.na(.data$EVAL))
   zoom_y <- FALSE
   if (max_s_plot > 0 & !(is.na(max_s_plot))) {
     s1 <- borders[borders$lim == 1, "val"] - borders[borders$lim == 0, "val"]
@@ -436,12 +375,12 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
   }
 
   p <-
-    ggplot(subdata, aes(x = BATCHNR, y = ENTRY)) +
+    ggplot(subdata, aes(x = .data$BATCHNR, y = .data$ENTRY)) +
     geom_point(colour = subdata$COLOR) +
-    geom_path(data = evaldata, aes(x = BATCHNR, y = ENTRY), colour = base_color) +
-    geom_point(data = evaldata, aes(x = BATCHNR, y = ENTRY),
+    geom_path(data = evaldata, aes(x = .data$BATCHNR, y = .data$ENTRY), colour = base_color) +
+    geom_point(data = evaldata, aes(x = .data$BATCHNR, y = .data$ENTRY),
                colour = evaldata$COLOR) +
-    geom_hline(data = borders, aes(yintercept = val),
+    geom_hline(data = borders, aes(yintercept = .data$val),
                colour = borders$color) +
     scale_x_continuous(breaks = evaldata$BATCHNR,
                        labels = evaldata$BATCH) +
