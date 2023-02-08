@@ -149,36 +149,3 @@ list_all_qc_data <- function(conn, min_date = "2020-01-01", max_date = "2021-01-
   DBI::dbGetQuery(conn, sql)
 }
 
-#' Verkrijg de ELC data
-#'
-#' @param dbcon dbconnection object (DBI)
-#' @param sqlfile path naar de file die de sql code bevat
-#' @param keep aantal batches te behouden voor de figuur
-#'
-#' @return dataset met alle te verwerken gegevens
-#' @export
-get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
-  sqlcode <- readLines(sqlfile)
-  sqlcode <- paste(sqlcode, collapse = "\n")
-
-  qry = "select NAME, MaxVersion = max(VERSION) from PRODUCT group by NAME"
-  productVersions = DBI::dbGetQuery(dbcon, qry)
-  cat(sqlcode)
-
-  plotdata <- DBI::dbGetQuery(dbcon, sqlcode)
-  batchvolgorde <- plotdata %>%
-    group_by(BATCH) %>%
-    summarize(FIRST_ENTRY = min(ENTERED_ON)) %>%
-    arrange(FIRST_ENTRY)
-  n_batch <- nrow(batchvolgorde)
-  batches_to_keep <- batchvolgorde[max(1, n_batch - keep + 1):n_batch, , drop = FALSE]
-  batches_to_keep <- batches_to_keep %>% mutate(BATCHNR = 1:nrow(batches_to_keep))
-
-  plotdata <- plotdata %>%
-    inner_join(batches_to_keep) %>%
-    mutate(combi = paste(ANALYSIS, SAMPLE_NAME, NAME, sep = "---")) %>%
-    arrange(FIRST_ENTRY, BATCH, ORDER_NUMBER)
-
-  attr(plotdata, "sqlcode") <- sqlcode
-  plotdata
-}
