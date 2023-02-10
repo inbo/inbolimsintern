@@ -29,6 +29,10 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
   colnames(subdata) <- toupper(colnames(subdata))
   if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE
 
+  if(is.null(base_color)) {
+    base_color <-  (subdata %>% filter(is.na(.data$EVAL) | .data$EVAL == FALSE) %>% pull(.data$COLOR))[1]
+  }
+
   if (is.null(borders)) {
     borders <- data.frame(lim = -3:3,
                           val = c(max(subdata$LCL3S), max(subdata$LCL2S),
@@ -38,10 +42,10 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                           color = c("red", "orange", "green4", "blue4",
                                          "green4", "orange", "red"))
   }
-  evaldata <- subdata %>% filter(!is.na(.data$EVAL))
+  evaldata <- subdata %>% filter(!is.na(.data$EVAL) & (.data$EVAL != FALSE))
   zoom_y <- FALSE
   if (max_s_plot > 0 & !(is.na(max_s_plot))) {
-    s1 <- borders[borders$lim == 1, "val"] - borders[borders$lim == 0, "val"]
+    s1 <- (borders[borders$lim == 1, "val"] - borders[borders$lim == -1, "val"])/2
     smin <- borders[borders$lim == 0, "val"] - max_s_plot *s1
     smax <- borders[borders$lim == 0, "val"] + max_s_plot *s1
 

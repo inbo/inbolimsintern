@@ -3,15 +3,16 @@
 #' @param dbcon dbconnection object (DBI)
 #' @param sqlfile path naar de file die de sql code bevat
 #' @param keep aantal batches te behouden voor de figuur
+#' @param productversions data.frame me een kolom PRODUCT en VERSIE om te bepalen welke limieten gebruikt moeten worden. IF NULL dan worden de maximale versies gebruikt voor elk product
 #'
 #' @return dataset met alle te verwerken gegevens
 #' @export
-get_ELC_data <- function(dbcon, sqlfile, keep = 30) {
+get_ELC_data <- function(dbcon, sqlfile, keep = 30, productversions = NULL) {
   sqlcode <- readLines(sqlfile)
   sqlcode <- paste(sqlcode, collapse = "\n")
 
-  qry = "select NAME, MaxVersion = max(VERSION) from PRODUCT group by NAME"
-  productVersions = DBI::dbGetQuery(dbcon, qry)
+  #qry = "select NAME, MaxVersion = max(VERSION) from PRODUCT group by NAME"
+  #productVersions = DBI::dbGetQuery(dbcon, qry)
   cat(sqlcode)
 
   plotdata <- DBI::dbGetQuery(dbcon, sqlcode)
