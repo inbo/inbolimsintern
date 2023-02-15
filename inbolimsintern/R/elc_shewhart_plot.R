@@ -27,10 +27,11 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                               base_color = "lightblue3",
                               max_s_plot = 5) {
   colnames(subdata) <- toupper(colnames(subdata))
-  if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE
+  if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE #tijdelijk-moet beter geimplementeerd worden'
 
   if(is.null(base_color)) {
     base_color <-  (subdata %>% filter(is.na(.data$EVAL) | .data$EVAL == FALSE) %>% pull(.data$COLOR))[1]
+    if (is.na(base_color)) base_color <- "lightblue3" #wanneer alle data EVAL true hebben
   }
 
   if (is.null(borders)) {
@@ -42,7 +43,9 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                           color = c("red", "orange", "green4", "blue4",
                                          "green4", "orange", "red"))
   }
-  evaldata <- subdata %>% filter(!is.na(.data$EVAL) & (.data$EVAL != FALSE))
+  evaldata <- subdata %>%
+    filter(!is.na(.data$EVAL) & (.data$EVAL != FALSE)) %>%
+    arrange(.data$BATCHNR)
   zoom_y <- FALSE
   if (max_s_plot > 0 & !(is.na(max_s_plot))) {
     s1 <- (borders[borders$lim == 1, "val"] - borders[borders$lim == -1, "val"])/2
