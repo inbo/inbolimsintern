@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "CTR_SAVE")
 writeLines(con = logfile, paste0("Bewaren archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5349
+call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5388
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
