@@ -26,8 +26,8 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30, productversions = NULL) {
   }
 
   firstentries <- plotdata %>%
-    group_by(BATCH, ANALYSIS, NAME, SAMPLE_NAME) %>%
-    arrange(BATCH, ANALYSIS, NAME, SAMPLE_NAME, ENTERED_ON) %>%
+    group_by(C_DATE_BATCHRUN, BATCH, ANALYSIS, NAME, SAMPLE_NAME) %>%
+    arrange( C_DATE_BATCHRUN, BATCH, ANALYSIS, NAME, SAMPLE_NAME, ENTERED_ON) %>%
     slice(1) %>%
     group_by(ANALYSIS, NAME, SAMPLE_NAME) %>%
     do(dofun(., keep)) %>%

@@ -23,10 +23,10 @@ cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 try({
   sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
-  archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
-   if (class(archive_label == 'try-error')) {
-     archive_label <- NULL
-   }
+  # archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
+  #  if (class(archive_label == 'try-error')) {
+  #    archive_label <- NULL
+  #  }
 }, outFile = logfile)
 
 ## Data
@@ -38,14 +38,6 @@ htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 alldata <- get_ELC_data(conn, sqlfile, keep = 30)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 combis <- unique(alldata$combi)
-
-# ggplot(alldata %>% mutate(LCL3S = C_CTR_X - 3 * C_CTR_SD,
-#                           UCL3S = C_CTR_X + 3 * C_CTR_SD),
-#        aes(x = BATCHNR, y = as.numeric(ENTRY))) + geom_point(pch=1) +
-#   geom_line(aes(y = C_CTR_X), color = "green4") +
-#   geom_line(aes(y = UCL3S) , color = "red") +
-#   geom_line(aes(y = LCL3S) , color = "red") +
-#   facet_wrap(SAMPLE_NAME~NAME, scales = "free_y")
 
 ## INIT html
 
@@ -66,7 +58,7 @@ cat("<H1>Leeswijzer</H1>",
 "\n", sep = "\n", file = htmlfile, append = TRUE)
 
 ## Loop through each sample_name, component combination
-archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
+#archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
 for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
