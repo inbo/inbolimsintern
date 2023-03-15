@@ -33,12 +33,13 @@ process_samp_reg <- function(source_path, source_file, target_path, finish_path,
   try(project_naam <- data_samp[5,2])
   print(project_naam)
 
+  filedate <- datetime_text()
   #schrijf data weg als tsv
-  target_file_samp <- paste0(project_naam, "_", datetime_text(),  "---staalformulier.tsv")
+  target_file_samp <- paste0(project_naam, "_", filedate,  "---staalformulier.tsv")
   print(target_file_samp)
   readr::write_tsv(data_samp, path = file.path(target_path, target_file_samp), col_names = FALSE, na = '')
 
-  target_file_ana <- paste0(project_naam, "_", datetime_text(), "---analyseformulier.tsv")
+  target_file_ana <- paste0(project_naam, "_", filedate, "---analyseformulier.tsv")
   print(target_file_ana)
   readr::write_tsv(data_ana, path = file.path(target_path, target_file_ana), col_names = FALSE, na = '')
 
