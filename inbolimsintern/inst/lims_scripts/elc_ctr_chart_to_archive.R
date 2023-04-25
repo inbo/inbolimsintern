@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "CTR_SAVE")
 writeLines(con = logfile, paste0("Bewaren archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5388
+call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5388 5590
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -22,11 +22,13 @@ writeLines(con = logfile, "params\n------\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
+  samplingpoint = 'NONE'
   sqlfile <- filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE)
   htmlfile <- filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE)
   chartlabel <- filter(params, ARG_NAME == "LABEL") %>% pull(VALUE)
   product <- filter(params, ARG_NAME == "PRODUCT") %>% pull(VALUE)
   productversie <- filter(params, ARG_NAME == "PRODUCT_VERSION") %>% pull(VALUE)
+  label <- filter(params, ARG_NAME == "LABEL") %>% pull(VALUE)
   datetime <- filter(params, ARG_NAME == "DATE_TIME") %>% pull(VALUE)
   user <- filter(params, ARG_NAME == "USER") %>% pull(VALUE)
   htmlrootshort <- substring(htmlfile, max(unlist(gregexpr("\\\\", htmlfile))) + 1, nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
@@ -59,8 +61,8 @@ for (comb in combis) {
   archive_data <- rbind(archive_data, htmldata$plot)
 }
 archive_data_export <- archive_data %>%
-  transmute(LABEL, DATE = datetime, USER = user,
-            PRODUCT, LIMIT_VERSION = VERSION, SAMPLING_POINT, SAMPLE_NAME,
+  transmute(LABEL = label, DATE = datetime, USER = user,
+            PRODUCT = product, LIMIT_VERSION = VERSION, SAMPLING_POINT = samplingpoint, SAMPLE_NAME,
             BATCH, BATCHNR, CHECK_RULES,  ANALYSIS, NAME, ENTERED_ON, ENTRY, UNITS,
             C_CTR_X, C_CTR_SD, C_CERTIFIED_VALUE, C_CERTIFIED_SD,
             OUT3S, WARN, OUT2S, DRIFT, BIAS, COLOR, SIZE,
@@ -76,11 +78,11 @@ cat(paste0("<html>\n<head>", "call_id : ", args["call_id"], "</head>\n<body>\n")
     file = htmlfile, append = FALSE)
 csvfile <- paste0(htmlpath, htmlrootshort, ".csv")
 cat("<a href=\"",csvfile, "\">download csv data:</a>", file = htmlfile, append = FALSE)
-write_excel_csv2(alldata, path = csvfile)
+write_excel_csv2(alldata, file = csvfile)
 
 teller <- 0
 all_archive_data <- NULL
-for (cmb in unique(alldata$COMBI)) {
+for (cmb in unique(alldata$combi)) {
   teller <- teller + 1
   fignr <- sprintf("%03d", teller)
   print(cmb)
@@ -88,8 +90,8 @@ for (cmb in unique(alldata$COMBI)) {
   figbaserel <- paste0(htmlrootshort, "_", fignr, "_")
   cat(paste0("<h2>", cmb, "</h2>"), file = htmlfile, append = TRUE)
   dfcomb <- alldata %>%
-    arrange(IN_STAT, ROWNR) %>%
-    filter(COMBI == cmb)
+    arrange(FIRST_ENTRY, BATCHNR) %>%
+    filter(combi == cmb)
   print(nrow(dfcomb))
 
   #controlekaart laatste jaar
@@ -134,38 +136,6 @@ for (cmb in unique(alldata$COMBI)) {
   cat(knitr::kable(ctrtabel, format = "html", row.names = FALSE),
       file = htmlfile, append = TRUE)
 
-}
-
-write_archive_data <- function(conn, data) {
-  colnames(data) <- toupper(colnames(data))
-
-  cond_str <- paste0(" LABEL in ('",
-                     paste(unique(data$LABEL), collapse = "','"), "')",
-                     " and ANALYSIS in ('",
-                     paste(unique(data$ANALYSIS), collapse = "','"), "')",
-                     " and NAME in ('",
-                     paste(unique(data$NAME), collapse = "','"), "')",
-                     " and SAMPLE_NAME in ('",
-  paste(unique(data$PRODUCT_GRADE), collapse = "','"), "')"
-  )
-
-
-  qry_check <- paste0("select LABEL, ANALYSIS, NAME, SAMPLE_NAME ",
-                      " from C_CTR_ARCHIVE ",
-                      " where ", cond_str)
-  in_db <- dbGetQuery(conn, qry_check)
-  if (nrow(in_db)) {
-    qry_dis <- paste0(" update C_CTR_ARCHIVE set ACTIVE = 'F' where ", cond_str)
-    dbSendQuery(conn, qry_dis)
-  }
-  print("here")
-  data <- data %>%
-    select(-which(duplicated(colnames(data)))) %>% #kolom waarde is dubbel
-    mutate(ACTIVE = 'T')
-
-  print(colnames(data))
-  dbAppendTable(conn, "C_CTR_ARCHIVE",
-                data %>% select(-ROWNR, -FIRST_BATCH_ENTRY))
 }
 
 write_archive_data(conn, all_archive_data)

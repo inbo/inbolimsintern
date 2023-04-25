@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -21,8 +21,11 @@ writeLines(con = logfile, "params\n------\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
+  maxpoints_orig <- 30 #indien max_points bestaat zordt dit overschreven door die waarde
   sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
+  maxpoints <- try(filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% as.integer())
+  if (inherits(maxpoints, "try-error") | !length(maxpoints)) maxpoints <- maxpoints_orig
   # archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
   #  if (class(archive_label == 'try-error')) {
   #    archive_label <- NULL
@@ -35,7 +38,7 @@ htmlrootshort <- substring(htmlfile,
                            max(unlist(gregexpr("\\\\", htmlfile))) + 1,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
-alldata <- get_ELC_data(conn, sqlfile, keep = 30)
+alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 combis <- unique(alldata$combi)
 

@@ -15,7 +15,9 @@
 #' lims_db_connect(uid = "me", pwd = "123456") #should not work
 #' }
 limsdb_connect <- function(server = "inbo-sql07-prd.inbo.be",
-                           database = "D0015_00_Lims", uid, pwd, connectlist = NULL){
+                           database = "D0015_00_Lims", uid, pwd,
+                           connectlist = NULL) {
+
   if  (!is.null(connectlist)) {
     if (is.list(connectlist) & all(c("uid", "pwd", "dsn") %in% names(connectlist))) {
       uid <- connectlist$uid

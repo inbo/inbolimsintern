@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "TLC_Duplo_Overview")
 writeLines(con = logfile, paste0("TLC_Duplo_Overview\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 3066 call_id <- 3065
+call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721
 digits <- 5
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -30,70 +30,97 @@ try({
 
 ## Data
 
-prefix = paste0(as.numeric(year) - 2000, "-%")
-dupprefix = paste0("D", as.numeric(year) - 2000, "-%")
+#prefix = paste0(as.numeric(year) - 2000, "-%")
+#dupprefix = paste0("D", as.numeric(year) - 2000, "-%")
+dupprefix = "D"
 labprefix = paste0("%", lab, "%")
+firstdate = params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
+lastdate  = params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
+lab = params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
+outtype = params %>% filter(ARG_NAME == 'FILE_SEP') %>% pull(VALUE)
 
-qry = paste0("
-select
-project = s.PROJECT, samplenr = s.SAMPLE_NUMBER, matrix = s.C_SAMPLE_MATRIX
-, textid = s.TEXT_ID, sampletype = s.SAMPLE_TYPE
-, dupnr = s.C_ORIG_DUP_NUMBER, sstatus = s.STATUS
-, analysis = r.ANALYSIS, name = r.NAME, r.ENTRY, rstatus = r.STATUS
-from sample s
-inner join result r on r.SAMPLE_NUMBER = s.SAMPLE_NUMBER
-where 1 = 1
-and r.REPORTABLE = 'T'
-and r.STATUS in ('E', 'M', 'A')
-and s.STATUS in ('C', 'A')
-and C_ORIG_DUP_NUMBER > 0
-and (text_id like '",
-dupprefix, "' or text_id like '", prefix, "')",
-" and (PRODUCT like '", labprefix, "')",
-" order by C_ORIG_DUP_NUMBER")
+qry <- paste0(
+"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, dupnr = s.C_ORIG_DUP_NUMBER ",
+", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT",
+", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS",
+", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ",
+" from result r, test t, sample s ",
+" where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER",
+" and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ",
+                             " where sample_type = 'DUP' and status in ('C', 'A') ",
+                             " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')",
+" and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ",
+" and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'",
+" order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
+)
 
-dfAll <- dbGetQuery(conn, qry)
-dfAll %<>%
-  mutate(sample_type = ifelse(is.na(sampletype), "SAMP", sampletype),
-         ENTRY = ifelse(ENTRY %in% ('Y'), 1, ENTRY),
-         ENTRY = ifelse(ENTRY %in% ('N'), 0, ENTRY)) %>%
-  mutate(waarde_ruw = as.numeric(ENTRY))
+cat(qry, file =  logfile, append = TRUE, sep = "\n")
 
-dfPivot <- dfAll %>%
-  group_by(dupnr, sample_type, analysis, name) %>%
+df_all <- dbGetQuery(conn, qry)
+df_all <- df_all %>%
+  mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
+         waarde_ruw = as.numeric(value))
+cat("aantal rijen in data: ", nrow(df_all), '\n', file = logfile, sep = "\n")
+
+
+df_pivot <- df_all %>%
+  group_by(dupnr, sampletype, analysis, name, repli ) %>%
   summarise(waarde = mean(waarde_ruw, na.rm = TRUE),
             N = n()) %>%
-  arrange(analysis, name, dupnr) %>%
-  pivot_wider(id_cols = c(dupnr, analysis, name),
-              names_from = sample_type,
+  arrange(analysis, name, dupnr, repli) %>%
+  pivot_wider(id_cols = c(dupnr, analysis, name, repli),
+              names_from = sampletype,
               values_from = waarde) %>%
-  mutate(RATIO = DUP / SAMP,
-         DIFF = DUP - SAMP,
-         MEAN = mean(c(DUP, SAMP)),
-         PCT_DVG = abs(DIFF) / MEAN * 100)
+  mutate(ratio = SAMP / DUP,
+         afwijking = SAMP - DUP,
+         gemiddelde = (DUP + SAMP) / 2,
+         relatief = abs(afwijking) / gemiddelde * 100) %>%
+  filter(!is.na(DUP) & !is.na(SAMP))
 
-dfOrigSamps <- dfAll %>%
-  group_by(dupnr) %>%
-  do({
-    first_samp = min(.$samplenr)
-    filter(., samplenr == first_samp) %>%
-      mutate(aantal = nrow(.))
-  })
+df_pivot <- df_pivot %>%
+  inner_join(df_all %>%
+               select(textid, unit, blindparent, dupnr, date, analysis, name, repli, sampletype) %>%
+               filter(sampletype == "SAMP"),
+             by = c('dupnr', 'analysis', 'name', 'repli')) %>%
+  inner_join(df_all %>%
+               select(textid_dup = textid, dupnr, date_dup = date, analysis, name, repli, sampletype_dup = sampletype) %>%
+               filter(sampletype_dup == "DUP"),
+             by = c('dupnr', 'analysis', 'name', 'repli')) %>%
+  transmute(dupnr, repli, analysis, name, unit,  textid, textid_dup, blindparent, date, date_dup,
+         meting=round(SAMP,digits), duplometing=round(DUP, digits),
+         gemiddelde=round(gemiddelde, digits), ratio = round(ratio, digits),
+         afwijking = round(afwijking, digits), relatief = round(relatief, digits)
+         )
 
+df_cvsd <- df_pivot %>%
+  group_by(analysis, name, unit) %>%
+  summarise(N = n(),
+            SD = round(sqrt((sum(afwijking^2)) / (2*n())), digits),
+            CV = round(100 * sqrt((sum((afwijking / gemiddelde)^2) / (2*n()))),digits-2)) %>%
+  transmute(dupnr = -1, repli = N, analysis, name, unit,
+            textid = 'ZZZZZZ', textid_dup = 'D-ZZZZZZ-1', blindparent = NA, date_dup = NA,
+            meting = NA, duplometing = NA, gemiddelde=NA, ratio=NA, afwijking=NA, relatief=NA,
+            sd = SD, cv = CV)
 
-dfReturn <- dfPivot %>%
-  ungroup() %>%
-  inner_join(dfOrigSamps %>% select( project, textid, aantal, dupnr),
-             by = "dupnr") %>%
-  transmute(project, textid, analysis, name,
-            DUP = round(DUP, digits),
-            SAMP = round(SAMP, digits),
-            RATIO = round(RATIO, digits),
-            DIFF = round(DIFF, digits),
-            PCT_DVG = round(PCT_DVG, digits)) %>%
-  arrange(analysis, name, project, textid) %>%
-  filter(!duplicated(.))
+df_pivot <- bind_rows(df_pivot, df_cvsd) %>%
+  arrange(analysis, name, textid)
+cat("aantal paarsgewijze testen: ", nrow(df_pivot), '\n', file = logfile, sep = "\n")
 
-write_excel_csv2(dfReturn, path = csvpath, col_names = TRUE)
+Sys.sleep(2)
+
+if (outtype == "FULL") {
+  cat("writing csv", sep = "\n", file = logfile, append = TRUE)
+  a <- try(write_excel_csv2(df_pivot, file = csvpath, col_names = TRUE, na = ''))
+  cat(a, sep = "\n", file = logfile, append = TRUE)
+} else {
+  df_pivot$COMBI <-  interaction(df_pivot$analysis, df_pivot$name, sep = "_")
+  for (i in unique(df_pivot$COMBI)) {
+    partpath <- substring(csvpath, 1, nchar(csvpath) - 4)
+    partpath <- paste0(partpath, "_", i, ".csv")
+    write_excel_csv2(df_pivot %>% filter(COMBI == i) %>% select(-COMBI), file = partpath, col_names = TRUE, na = '')
+  }
+}
+Sys.sleep(2)
+
 
 
