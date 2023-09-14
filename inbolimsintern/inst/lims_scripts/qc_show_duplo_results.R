@@ -1,6 +1,7 @@
 #TLC - Toon Duplo Resultaten van het hele gekozen lopende jaar
 
 ### R libraries
+
 library(inbolimsintern)
 library(DBI)
 library(tidyverse)
@@ -11,7 +12,7 @@ logfile <- logfile_start(prefix = "TLC_Duplo_Overview")
 writeLines(con = logfile, paste0("TLC_Duplo_Overview\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721
+call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721 6572
 digits <- 5
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -32,25 +33,27 @@ try({
 
 #prefix = paste0(as.numeric(year) - 2000, "-%")
 #dupprefix = paste0("D", as.numeric(year) - 2000, "-%")
-dupprefix = "D"
-labprefix = paste0("%", lab, "%")
-firstdate = params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
-lastdate  = params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
-lab = params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
-outtype = params %>% filter(ARG_NAME == 'FILE_SEP') %>% pull(VALUE)
+#dupprefix = "D"
+#labprefix = paste0("%", lab, "%")
+firstdate <- params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
+lastdate  <-  params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
+lab       <- params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
+outtype   <- params %>% filter(ARG_NAME == 'FILE_SEP') %>% pull(VALUE)
 
 qry <- paste0(
-"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, dupnr = s.C_ORIG_DUP_NUMBER ",
-", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT",
-", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS",
-", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ",
-" from result r, test t, sample s ",
-" where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER",
-" and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ",
-                             " where sample_type = 'DUP' and status in ('C', 'A') ",
-                             " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')",
-" and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ",
-" and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'",
+"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
+", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
+", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
+", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
+" from result r, test t, sample s ", "\n",
+" where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
+" and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
+                             " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
+                             " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
+" and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
+" and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
+" and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
+" and r.ENTRY_QUALIFIER is NULL",
 " order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
 )
 
@@ -85,13 +88,14 @@ df_pivot <- df_pivot %>%
   inner_join(df_all %>%
                select(textid_dup = textid, dupnr, date_dup = date, analysis, name, repli, sampletype_dup = sampletype) %>%
                filter(sampletype_dup == "DUP"),
-             by = c('dupnr', 'analysis', 'name', 'repli')) %>%
+             by = c('dupnr', 'analysis', 'name', 'repli'), multiple = "all") %>%
   transmute(dupnr, repli, analysis, name, unit,  textid, textid_dup, blindparent, date, date_dup,
          meting=round(SAMP,digits), duplometing=round(DUP, digits),
          gemiddelde=round(gemiddelde, digits), ratio = round(ratio, digits),
          afwijking = round(afwijking, digits), relatief = round(relatief, digits)
          )
 
+#bereken samenvattende statistieken en voeg die bij de dataset
 df_cvsd <- df_pivot %>%
   group_by(analysis, name, unit) %>%
   summarise(N = n(),
@@ -111,7 +115,7 @@ Sys.sleep(2)
 if (outtype == "FULL") {
   cat("writing csv", sep = "\n", file = logfile, append = TRUE)
   a <- try(write_excel_csv2(df_pivot, file = csvpath, col_names = TRUE, na = ''))
-  cat(a, sep = "\n", file = logfile, append = TRUE)
+  cat(class(a), sep = "\n", file = logfile, append = TRUE)
 } else {
   df_pivot$COMBI <-  interaction(df_pivot$analysis, df_pivot$name, sep = "_")
   for (i in unique(df_pivot$COMBI)) {

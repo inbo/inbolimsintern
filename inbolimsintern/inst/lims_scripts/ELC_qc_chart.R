@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597 6241
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -40,6 +40,13 @@ htmlrootshort <- substring(htmlfile,
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
+
+#solve unnicode mu character
+alldata <- alldata %>%
+  mutate(combi = gsub('\xb5m', 'um', combi)) %>%
+  mutate(combi = gsub('<b5>m', 'um', combi)) %>%
+  mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
+  mutate(combi = gsub('<b5>S', 'uS', combi))
 combis <- unique(alldata$combi)
 
 ## INIT html
@@ -62,6 +69,8 @@ cat("<H1>Leeswijzer</H1>",
 
 ## Loop through each sample_name, component combination
 #archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
+
+
 for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")

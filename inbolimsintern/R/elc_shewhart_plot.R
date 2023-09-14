@@ -58,6 +58,12 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     }
   }
 
+  units =  max(subdata$UNITS)
+  units = gsub('\xb5m', 'um', units)
+  units = gsub('<b5>m', 'um', units)
+  units = gsub('\xb5S', 'uS', units)
+  units = gsub('<b5>S', 'uS', units)
+
   p <-
     ggplot(subdata, aes(x = .data$BATCHNR, y = .data$ENTRY)) +
     geom_point(colour = subdata$COLOR) +
@@ -69,7 +75,7 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     scale_x_continuous(breaks = evaldata$BATCHNR,
                        labels = evaldata$BATCH) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-    ylab(paste0("Waarde [", max(subdata$UNITS), "]")) + xlab("") +
+    ylab(paste0("Waarde [", units, "]")) + xlab("") +
     ggtitle(subdata$COMBI[1])
   if (zoom_y){
     p <- p + coord_cartesian(ylim = c(smin, smax))
