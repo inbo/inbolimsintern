@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597 6241
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597 6241 6605
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -86,10 +86,11 @@ for (comb in combis) {
   cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
   cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
       file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['summary']], format = "html"),
+  cat(knitr::kable(htmldata[['summary']], format = "html", table.attr = "style='width:40%;'") %>%
+        kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
       file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['tabel']] %>% filter(EVAL != "."),
-                   format = "html"),
+  cat(knitr::kable(htmldata[['tabel']] %>% filter(EVAL != "."), format = "html", table.attr = "style='width:40%;'") %>%
+        kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
       file = htmlfile, append = TRUE)
   fxavg <- htmldata[['summary']] %>% filter(param == "gem") %>% pull(ctr_fix)
   fxsd <- htmldata[['summary']] %>% filter(param == "sd") %>% pull(ctr_fix)

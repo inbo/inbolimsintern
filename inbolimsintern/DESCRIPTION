@@ -27,6 +27,7 @@ Imports:
     readr
 Suggests:
     knitr,
+    kableExtra,
     rmarkdown,
     testthat (>= 2.1.0)
 RoxygenNote: 7.2.3

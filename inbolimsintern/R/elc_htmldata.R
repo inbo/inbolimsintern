@@ -81,8 +81,11 @@ elc_htmldata <- function(plotdata,
                            ifelse(checkdata$BIAS,  'R3', '--'),
                            ifelse(checkdata$DRIFT, 'R4', '--'))
 
+  values_clean <- values[(values >= ctr_x - 3 * ctr_sd) & (values <= ctr_x + 3 * ctr_sd)]
   chart_mean = mean(values)
   chart_sd = sd(values)
+  chart_mean_clean = mean(values_clean)
+  chart_sd_clean = sd(values_clean)
 
   #Maak de data klaar voor de plot
   subdata <- data %>%
@@ -116,7 +119,8 @@ elc_htmldata <- function(plotdata,
                             certified = round(c(certified, certified_sd),
                                               digits = digits),
                             ctr_fix = round(c(ctr_x, ctr_sd),digits = digits),
-                            calculated = round(c(chart_mean, chart_sd), digits = digits))
+                            calculated_incl_outliers = round(c(chart_mean, chart_sd), digits = digits),
+                            calculated_excl_outliers = round(c(chart_mean_clean, chart_sd_clean), digits = digits))
   return(list(plot = subdata,
               borders = s_borders,
               summary = summarydata,
