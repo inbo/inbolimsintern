@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "REQUESTED_DB_UPDATES")
 writeLines(con = logfile, paste0("REQUESTED_DB_UPDATES\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 2252 #2186 #2181 #2138 #2128 #1647 1982
+call_id <- 0 #call_id <- 2252 #2186 #2181 #2138 #2128 #1647 1982 6021
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])

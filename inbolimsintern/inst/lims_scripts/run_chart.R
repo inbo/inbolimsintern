@@ -6,11 +6,12 @@ library(inbolimsintern)
 logfile <- logfile_start(prefix = "RUN_CHART")
 writeLines(con = logfile, paste0("inbolimsintern versie: ", packageVersion("inbolimsintern")))
 
-call_id <- 0
+#call_id <- 5243
 #call_id <- 857
+call_id <- 0
 
 try({
-  args <- inbolimsintern::prepare_session(call_id)
+  args <- inbolimsintern::prepare_session(call_id) #call_id nog niet van belang als het script vanuit lims zordt gerund
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
   params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 }, outFile = logfile)

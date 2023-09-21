@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597 6241 6605
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -21,12 +21,15 @@ writeLines(con = logfile, "params\n------\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
+  maxpoints_orig <- 30 #indien max_points bestaat zordt dit overschreven door die waarde
   sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
-  archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
-   if (class(archive_label == 'try-error')) {
-     archive_label <- NULL
-   }
+  maxpoints <- try(filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% as.integer())
+  if (inherits(maxpoints, "try-error") | !length(maxpoints)) maxpoints <- maxpoints_orig
+  # archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
+  #  if (class(archive_label == 'try-error')) {
+  #    archive_label <- NULL
+  #  }
 }, outFile = logfile)
 
 ## Data
@@ -35,17 +38,16 @@ htmlrootshort <- substring(htmlfile,
                            max(unlist(gregexpr("\\\\", htmlfile))) + 1,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
-alldata <- get_ELC_data(conn, sqlfile, keep = 30)
+alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
-combis <- unique(alldata$combi)
 
-# ggplot(alldata %>% mutate(LCL3S = C_CTR_X - 3 * C_CTR_SD,
-#                           UCL3S = C_CTR_X + 3 * C_CTR_SD),
-#        aes(x = BATCHNR, y = as.numeric(ENTRY))) + geom_point(pch=1) +
-#   geom_line(aes(y = C_CTR_X), color = "green4") +
-#   geom_line(aes(y = UCL3S) , color = "red") +
-#   geom_line(aes(y = LCL3S) , color = "red") +
-#   facet_wrap(SAMPLE_NAME~NAME, scales = "free_y")
+#solve unnicode mu character
+alldata <- alldata %>%
+  mutate(combi = gsub('\xb5m', 'um', combi)) %>%
+  mutate(combi = gsub('<b5>m', 'um', combi)) %>%
+  mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
+  mutate(combi = gsub('<b5>S', 'uS', combi))
+combis <- unique(alldata$combi)
 
 ## INIT html
 
@@ -66,7 +68,9 @@ cat("<H1>Leeswijzer</H1>",
 "\n", sep = "\n", file = htmlfile, append = TRUE)
 
 ## Loop through each sample_name, component combination
-archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
+#archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
+
+
 for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
@@ -82,10 +86,11 @@ for (comb in combis) {
   cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
   cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
       file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['summary']], format = "html"),
+  cat(knitr::kable(htmldata[['summary']], format = "html", table.attr = "style='width:40%;'") %>%
+        kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
       file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['tabel']] %>% filter(EVAL != "."),
-                   format = "html"),
+  cat(knitr::kable(htmldata[['tabel']] %>% filter(EVAL != "."), format = "html", table.attr = "style='width:40%;'") %>%
+        kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
       file = htmlfile, append = TRUE)
   fxavg <- htmldata[['summary']] %>% filter(param == "gem") %>% pull(ctr_fix)
   fxsd <- htmldata[['summary']] %>% filter(param == "sd") %>% pull(ctr_fix)
