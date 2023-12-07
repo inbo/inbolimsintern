@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_qc_eval")
 writeLines(con = logfile, paste0("ELC_Evaluatie\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0
+call_id <- 0 #call_id = 6661
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -22,8 +22,8 @@ cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 ### inlezen gegevens
 
-lastyear <- 2023
-qcproduct <- "QC_WATER"
+qcproduct <- params %>% filter(ARG_NAME == "PRODUCT") %>% pull(VALUE)
+lastyear <- params %>% filter(ARG_NAME == "LAST_YEAR") %>% pull(VALUE) %>% as.numeric()
 ts <- paste0("{ts '", lastyear - 2, "-01-01 00:00:00'}")
 
 query <- paste0("
@@ -52,8 +52,8 @@ alldata <- dbGetQuery(conn, query) %>% mutate(ROW = 1:n(), period = as.numeric(s
 firstselect <- alldata %>%
   group_by(ANALYSIS, NAME, SAMPLE_NAME, BATCH) %>%
   summarise(KEPT_ROW = min(ROW))
-firstdata <- alldata %>% semi_join(firstselect, by = c("ROW" = "KEPT_ROW"))
-
+firstdata <- alldata %>%
+  semi_join(firstselect, by = c("ROW" = "KEPT_ROW"))
 
 test1 <- firstdata %>%
   group_by(BATCH, ANALYSIS) %>%
@@ -66,8 +66,17 @@ firstdata %>% group_by(COMBI, period) %>% summarise(aantal = n()) %>%
 
 combis <- unique(firstdata$COMBI)
 
+headerAna <- NA
+headerComp <- NA
 
-  comb <- combis[54]
+for (i in combis)
+{
+  comb <- combis[comb]
+  comps <- unlist(str_split(comb,pattern =  "__"))
+  analyse <- comps[1]
+  component <- comps[2]
+  qcsample <- comps[3]
+
   print(comb)
   fdata <- firstdata %>% filter(COMBI == comb) %>% arrange(C_DATE_BATCHRUN) %>% mutate(BATCHNR = 1:n(), VALUE = as.numeric(ENTRY))
   table(fdata$period)
@@ -103,5 +112,9 @@ combis <- unique(firstdata$COMBI)
   }
   print(tobj)
   print(vobj)
+}
+
+
+
 
 
