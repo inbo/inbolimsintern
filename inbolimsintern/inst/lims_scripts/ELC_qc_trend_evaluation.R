@@ -102,7 +102,7 @@ for (i in combis) {
     qc_chart <- prd[1, "C_CTR_ADD"]
 
     minlim <- x_huidig - 3 * sd_huidig
-    maxlim <- x_huidig * 3 * sd_huidig
+    maxlim <- x_huidig + 3 * sd_huidig
     detlim <- prd[1, "DET_LIMIT"]
     is_pbl <- prd[1, "IS_PBL"]
   } else {
