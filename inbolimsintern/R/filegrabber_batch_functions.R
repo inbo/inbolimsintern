@@ -75,7 +75,7 @@ get_data_from_importfile <- function(path, batch_info, interpret_types = TRUE, d
   filename <- path
   extension <- get_file_extension(filename)
   if (extension %in% c("xls", "xlsx")) {
-    tabblad <- readxl::read_excel(filename, sheet = sheet, guess_max = 5000, col_names = FALSE)
+    tabblad <- readxl::read_excel(filename, sheet = sheet, guess_max = 5000, col_names = FALSE) #geen kolomnamen, die gaan mee als data voor de parsing
     aantalNA <- apply(tabblad, 2, function(x) sum(!is.na(x)))
     first_empty <- which(aantalNA <= 1)
     first_col = which(toupper(substring(cell, 1, 1)) == LETTERS)
@@ -137,7 +137,7 @@ move_batch_importfile <- function(data, source_path, source_file, batch_info, sc
     print("gewoon de originele file kopieren met extensie tsv")
     res <- try(file.copy(source, targetfile))
   } else {
-    res <- try(readr::write_tsv(data, path = targetfile, col_names = FALSE, na = ''))
+    res <- try(readr::write_tsv(data, file = targetfile, col_names = FALSE, na = ''))
 
   }
   print(res)
