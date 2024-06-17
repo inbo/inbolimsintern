@@ -17,22 +17,21 @@ INNER JOIN (
     WHERE t.analysis = 'C_TIC_ANALYSER' AND t.status in ('A')
 ) AS tic ON tc.original_sample = tic.original_sample
 ) 
-select s.PROJECT
+select project = s.PROJECT
 , batchName = b.NAME
 , batchOwner = b.OWNER
-, s.SAMPLE_TYPE
-, koepelstaal = s.ORIGINAL_SAMPLE
-, smpStatus = s.STATUS
-, r.ENTERED_ON
-, r.ENTERED_BY
-, r.ANALYSIS
-, r.NAME
-, r.[ENTRY]
+, sampleType = s.SAMPLE_TYPE
+, testlinksample = s.ORIGINAL_SAMPLE
+, duplolinksample = s.C_ORIG_DUP_NUMBER
+, sampleStatus = s.STATUS
+, entryDate = r.ENTERED_ON
+, enteredBy = r.ENTERED_BY
+, analysis = r.ANALYSIS
+, component = r.NAME
+, result = r.[ENTRY]
 , testStatus = r.[STATUS] 
 , testInstrument = t.[INSTRUMENT]
 , batchInstrument = b.[INSTRUMENT]
-
-
 from RESULT r inner join test t on r.TEST_NUMBER = t.TEST_NUMBER and t.ANALYSIS in ('C_N_ANAL_V','C_TIC_ANALYSER')
 inner join SAMPLE s on t.SAMPLE_NUMBER = s.sample_number and s.ORIGINAL_SAMPLE in (select original_sample from kept)
 inner join batch b on b.NAME = t.BATCH
