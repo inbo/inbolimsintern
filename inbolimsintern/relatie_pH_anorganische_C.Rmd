@@ -1,0 +1,311 @@
+---
+author: "Pieter Verschelde"
+title: "Onderzoek relatie pH met anorganische koolstof"
+date: "2024-07-15"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    df_print: paged
+---
+
+# Inleiding
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRUE)
+```
+
+```{r startup, results='hide'}
+library(tidyverse)
+library(glue)
+library(DBI)
+library(inbolimsintern)
+library(DescTools)
+
+date_start <- "2015-01-01"
+date_end <- "2024-07-08"
+
+```
+
+
+## Vraagstelling
+
+Anorganische koolstof wordt niet gemeten wanneer de pH lager is dan 6.5.
+In dit rapport willen we verifiëren of dat terecht is.
+pH gemeten op kalium, calcium en water geven ook verschillende resultaten.
+Vermoedelijk is een apart criterium nodig voor elk van deze methoden.
+
+## Manier van werken
+
+We verzamelen alle gegevens die in het labo gemeten zijn 
+sedert 1 januari 2015 tot en met 8 juli 2024,
+waarvoor ofwel anorganische koolstof is gemeten via de analyser (C_TIC_ANALYSER) 
+of het aandeel koolstof in calciumcarbonaat volgens de analyse (CACO3_TIT_V).
+Daarnaast moet voor elk van deze metingen ook minstens een pH-meting aanwezig zijn. 
+
+Er zijn 20 verschillende pH testen in het labo voor vaste stoffen,
+die we gaan categoriseren in de 3 hoofdcategorieën (pH op H<sub>2</sub>O, CaCl<sub>2</sub> of KCl). 
+Wanneer er meerdere metingen van hetzelfde type zijn voor een bepaald staal,
+dan wordt het minimum genomen. 
+
+We gebruiken enkel de data waarvoor de koolstofmeting meer dan 0 aangeeft.
+
+De verbanden tussen de anorganische koolstof en de pH worden grafisch voorgesteld.
+
+
+# Resultaten
+
+```{r queries}
+q_tic <- glue("
+select s.project, s.c_sample_matrix, r.sample_number, s.original_sample, s.text_id, s.sample_id
+, r.analysis, r.name, r.entry, r.formatted_entry
+, r.status, r.entered_on
+from result r
+inner join sample s on r.SAMPLE_NUMBER = s.SAMPLE_NUMBER
+where r.analysis in ('C_TIC_ANALYSER', 'CACO3_TIT_V')
+and r.name in ('T.IC.DS','CaCO3%DS', 'CaCO3.DS')
+and r.status = 'A'
+and entered_on > '{date_start}' and entered_on < '{date_end}'
+")
+
+q_ph <- glue("
+select s.project, s.c_sample_matrix, r.sample_number, s.original_sample, s.text_id, s.sample_id
+, r.analysis, r.name, r.entry, r.formatted_entry
+, r.status, r.entered_on
+from result r
+inner join sample s on r.SAMPLE_NUMBER = s.SAMPLE_NUMBER
+where r.analysis in (
+    select distinct(name)
+    from analysis a
+    where a.name like 'ph%V'
+    and a.active = 'T')
+and r.NAME like 'ph%'
+and r.status = 'A'
+and entered_on > '{date_start}' and entered_on < '{date_end}'
+")
+```
+
+```{r db, message = FALSE, cache = TRUE}
+secrets <- read_csv2(".secrets") #.secrets is a csv2 file containing name/value pairs
+conn <- limsdb_connect(
+  server   = secrets$value[secrets$name == "server"],
+  database = secrets$value[secrets$name == "db"],
+  uid      = secrets$value[secrets$name == "uid"],
+  pwd      = secrets$value[secrets$name == "pwd"]
+  )
+
+df_tic_all <- dbGetQuery(conn, q_tic)
+df_ph_all <- dbGetQuery(conn, q_ph)
+
+
+```
+
+```{r bruno, include=FALSE, eval=FALSE}
+#specifieke datavraag van Bruno
+#alle pH waarden
+df_ph_bruno <- df_ph_all |>
+  filter(!is.na(project)) |>
+  mutate(name = "pH",
+         value = as.numeric(entry),
+         analyse =
+           case_when(substring(analysis,1,3) == "PHH" ~ "pH_H2O",
+                     substring(analysis,1,3) == "PHC" ~ "pH_CaCl2",
+                     substring(analysis,1,3) == "PHK" ~ "pH_KCl",
+                     .default = "pH_H2O"))
+
+df_ph_bruno_pivot <- df_ph_bruno |>
+  select(project, c_sample_matrix, sample_id, original_sample, analyse, value) |>
+  pivot_wider(names_from = analyse,
+              values_from = value, values_fn = min, unused_fn = glue) |>
+  arrange(project) |>
+  rowwise() |>
+  mutate(count_not_na = sum(!is.na(c_across(c(pH_H2O, pH_CaCl2, pH_KCl)))),
+         c_sample_matrix = toupper(c_sample_matrix))
+
+write_csv2(df_ph_bruno_pivot, file = "pH waarden voor projectstalen sedert 2015.csv")
+
+```
+
+
+```{r analysedata}
+
+clamp_caco3 <- 10 / 100 * 12
+clamp_tic <- 0.1
+
+df_tic <- df_tic_all |>
+  filter(original_sample %in% df_ph_all$original_sample) |>
+  mutate(name = "TIC.DS",,
+         value = as.numeric(entry),
+         value = ifelse(analysis %like% 'CACO3%', value / 100 * 12, value),
+         analyse = analysis)
+
+df_ph <- df_ph_all |>
+  filter(original_sample %in% df_tic_all$original_sample) |>
+  mutate(name = "pH",
+         value = as.numeric(entry),
+         analyse =
+         case_when(substring(analysis,1,3) == "PHH" ~ "pH_H2O",
+                   substring(analysis,1,3) == "PHC" ~ "pH_CaCl2",
+                   substring(analysis,1,3) == "PHK" ~ "pH_KCl",
+                     .default = "pH_H2O"))
+
+df_ana <- bind_rows(df_tic |> select(original_sample, c_sample_matrix, analyse, value),
+                    df_ph |> select(original_sample, c_sample_matrix, analyse, value)) |>
+  pivot_wider(names_from = analyse, values_from = value, values_fn = min)
+```
+
+## Aantal metingen
+
+De aantallen zijn de metingen voor stalen die voldoen aan het criterium zoals beschreven in de manier van werken.
+
+Om anorganische koolstof te meten is voornamelijk de TIC analyse gebruikt. 
+pH op KCl wordt het minst gemeten en de metingen gebeuren bijna uitsluitend voor de TIC analyse.
+
+```{r aantallenTot}
+
+df_ana |> 
+  select(-c_sample_matrix) |> 
+  pivot_longer(cols = 2:6, values_to = "waarde") |> 
+  filter(!is.na(waarde)) |> 
+  ggplot(aes(x = name)) +
+  geom_bar() +
+  xlab("analyse") + ylab("aantal")
+```
+
+```{r aantallenTIC}
+df_ana |> 
+  filter(!is.na(C_TIC_ANALYSER)) |> 
+  pivot_longer(cols = starts_with("pH")) |> 
+  select(-CACO3_TIT_V) |> 
+  na.omit() |> 
+  ggplot(aes(x = name)) +
+  geom_bar() +
+  labs(x = "pH analyse", y = expression(aantal~TIC~metingen))
+```
+```{r aantallenCACO3}
+df_ana |> 
+  filter(!is.na(CACO3_TIT_V)) |> 
+  pivot_longer(cols = starts_with("pH")) |> 
+  select(-C_TIC_ANALYSER) |> 
+  na.omit() |> 
+  ggplot(aes(x = name)) +
+  geom_bar() +
+  labs(x = "pH analyse", y = expression(aantal~(CaCO[3]~metingen)))
+
+```
+
+
+## Verbanden tussen pH-waarden
+
+De verschillende pH-methoden leveren andere pH-waarden op.
+Onderstaande figuren toont de verbanden tussen kalium- en calciumchloride enerzijds en water anderzijds.
+In het in de steekproef voorkomende bereik zijn de pH waarden op CaCl<sub>2</sub> nauwkeurig te berekenen door ca. 0.6 af te trekken van de waarden op water.
+
+
+
+```{r lmod, results='asis'}
+lmod <- lm(pH_CaCl2 ~ pH_H2O, data = df_ana)
+stargazer::stargazer(lmod,type = "html")
+```
+
+```{r phplots1}
+ggplot(df_ana, aes(x = pH_H2O, y = pH_CaCl2)) + geom_point() + geom_smooth() +
+  geom_smooth(method = "lm", col = "green3") + 
+  labs(x = expression(pH~(H[2]*O)), y = expression(pH~(CaCl[2])))
+
+```
+
+Het verband tussen de pH op KCl en de andere methoden is minder eenduidig op basis van de hier gebruikte dataset.
+
+```{r phplots2, warning=FALSE, message=FALSE}
+ggplot(df_ana, aes(x = pH_H2O, y = pH_KCl)) + geom_point() + geom_smooth() +
+  geom_smooth(method = "lm", col = "green3") +
+  labs(x = expression(pH~(H[2]*O)), y = expression(pH~(KCl)))
+```
+
+
+## Verbanden anorganische koolstof met pH
+
+### verband met pH op water
+
+Puur grafisch kan je besluiten dat de hoeveelheid koolstof via de analyser inderdaad zoals vooropgesteld heel laag is waardoor de koolstofanalyse niet heel nuttig is bij pH < 6.5.
+
+
+```{r tich2o, warning = FALSE, message = FALSE}
+ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_H2O , y = C_TIC_ANALYSER)) +
+  geom_point() +
+  geom_smooth() +
+  geom_vline(xintercept = c(5.5,6.5), color = "red") +
+  geom_hline(yintercept = clamp_tic, color = "green3") +
+  scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
+  xlab(expression(pH~(H[2]*O))) + ylab("g/kg C (tic analyser)")
+
+```
+
+Voor calciumcarbonaat begint er vanaf een pH van 5.5 toch al wat koolstof gevonden worden.
+
+
+```{r co3h2o, warning = FALSE, message = FALSE}
+ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_H2O, y = CACO3_TIT_V)) +
+  geom_point() +
+  geom_smooth() +
+  geom_vline(xintercept = c(5.5,6.5), color = "red") +
+  geom_hline(yintercept = clamp_caco3, color = "green3") +
+  scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
+  xlab(expression(pH~(H[2]*O)))+ ylab(expression(g/kg~C~(CaCO[3]~titrator)))
+```
+
+### Verband met pH op KCl
+
+Voor KCl lijkt het verband vrij vergelijkbaar met voor pH water, al is er te weinig data aanwezig om een veilige conclusie te trekken rond calciumkarbonaat.
+
+```{r tickcl, warning = FALSE, message = FALSE}
+ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_KCl , y = C_TIC_ANALYSER)) +
+  geom_point() +
+  geom_smooth() +
+  geom_vline(xintercept = c(5.5,6.5), color = "red") +
+  geom_hline(yintercept = clamp_tic, color = "green3") +
+  scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
+  xlab("pH (KCl)") + ylab(expression(g/kg~C~(tic~analyser)))
+```
+
+
+```{r co3kcl, warning = FALSE, message = FALSE}
+ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_KCl, y = CACO3_TIT_V)) +
+  geom_point() +
+  geom_smooth() +
+  geom_vline(xintercept = c(5.5,6.5), color = "red") +
+  geom_hline(yintercept = clamp_caco3, color = "green3") +
+  scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
+  xlab("pH (KCl)") + ylab(expression(g/kg~C~(CaCO[3]~titrator)))
+```
+
+### verband met pH op CaCl<sub>2</sub>
+
+Doordat de pH-waarden van calciumchloride bijna hetzelfde zijn als die op water met 0.6 verminderd. Conservatief leggen we dan best de grens voor calciumchloride op 5.5. voor TIC metingen. Voor calciumcarbonaatmetingen zou de grens beter nog iets lager liggen.
+
+```{r ticcacl, warning = FALSE, message = FALSE}
+ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_CaCl2 , y = C_TIC_ANALYSER)) +
+  geom_point() +
+  geom_smooth() +
+  geom_vline(xintercept = c(5.5,6.5), color = "red") +
+  geom_hline(yintercept = clamp_tic, color = "green3") +
+  scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
+  xlab(expression(pH~(CaCl[2]))) + ylab(expression(g/kg~C~(tic~analyser)))
+```
+
+
+```{r co3cacl, warning = FALSE, message = FALSE}
+ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_CaCl2, y = CACO3_TIT_V)) +
+  geom_point() +
+  geom_smooth() +
+  geom_vline(xintercept = c(5.5,6.5), color = "red") +
+  geom_hline(yintercept = clamp_caco3, color = "green3") +
+  scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
+  xlab(expression(pH~(CaCl[2]))) + ylab(expression(g/kg~C~(CaCO[3]~titrator)))
+```
+
+# Conclusie
+
+Het is plausibel om geen koolstof te meten voor lage pH-waarden, en de grens hangt af per methode. Een grens van 6.5 voor pH op water en kaliumchloride lijkt ok voor TIC metingen, voor CaCo3 metingen is meer voorzichtigheid nodig. Een grens van pH op calciumchloride van 5.5 lijkt een goede keuze, al blijft het opletten met metingen op calciumcarbonaat.

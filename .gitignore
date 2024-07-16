@@ -18,6 +18,9 @@ lims_db_bevraging/output/
 .RData
 .RHistory
 
+#credentials
+.secrets
+
 # Example code in package build process
 *-Ex.R
 
