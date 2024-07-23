@@ -8,6 +8,9 @@ output:
     toc_float: true
     code_folding: hide
     df_print: paged
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 # Inleiding
@@ -28,31 +31,45 @@ date_end <- "2024-07-08"
 
 ```
 
-
 ## Vraagstelling
 
-Anorganische koolstof wordt niet gemeten wanneer de pH lager is dan 6.5.
-In dit rapport willen we verifiëren of dat terecht is.
-pH gemeten op kalium, calcium en water geven ook verschillende resultaten.
-Vermoedelijk is een apart criterium nodig voor elk van deze methoden.
+In het analytisch laboratorium hebben we een afspraak met de onderzoekers om geen anorganische koolstof niet te meten indien pH-waarde kleiner is dan 6.5.
+Hierbij wordt verondersteld dat onder deze omstandigheden geen anorganische koolstof aanwezig is in het bodemmonster.
+
+In het verleden was deze pH grens ingesteld op 5.5, maar bij de start van het CMON project is de grenswaarde verhoogd naar 6.5.
+Bij het CMON project wordt als zuurtegraad de volumetrische pH bepaling uitgevoerd met kaliumchloride 1M.
+
+In dit rapport willen we verifiëren de ingestelde pH-grenswaarde geldt voor alle pH bepalingen (pH-water, pH kaliumchloride en pH-calciumchoride).
+In praktijk wordt een klein verschil waargenomen tussen de verschillende pH bepalingen.
+**Vermoedelijk is een apart criterium nodig voor elk van deze methoden.** In het rapport wordt geen rekening gehouden tussen de volumetrische (op basis van volume) en de gravimetrische (op basis van gewicht) bepaling van de zuurtegraad.
 
 ## Manier van werken
 
-We verzamelen alle gegevens die in het labo gemeten zijn 
-sedert 1 januari 2015 tot en met 8 juli 2024,
-waarvoor ofwel anorganische koolstof is gemeten via de analyser (C_TIC_ANALYSER) 
-of het aandeel koolstof in calciumcarbonaat volgens de analyse (CACO3_TIT_V).
-Daarnaast moet voor elk van deze metingen ook minstens een pH-meting aanwezig zijn. 
+We verzamelen in het LIMS alle gegevens die in het analytisch laboratoirum gemeten in de periode van 1 januari 2015 tot en met 8 juli 2024, waarvoor anorganische koolstof is gemeten via de analyser (C_TIC_ANALYSER) of anorganische koolstof is berekend uit de bepaling van calciumcarbonaat volgens de analyse (CACO3_TIT_V).
+Daarnaast moet voor elk van deze metingen ook minstens een pH-meting aanwezig zijn.
 
-Er zijn 20 verschillende pH testen in het labo voor vaste stoffen,
-die we gaan categoriseren in de 3 hoofdcategorieën (pH op H<sub>2</sub>O, CaCl<sub>2</sub> of KCl). 
-Wanneer er meerdere metingen van hetzelfde type zijn voor een bepaald staal,
-dan wordt het minimum genomen. 
+De **bepaling van anorganische koolstof** in het analytisch laboratorium gebeurt volgens SAP-253C.
+Bij de bepaling van anorganische koolstof in een bodemmonsters worden de aanwezige carbonaten vrijgesteld door het staal te behandelen met fosforzuur.
+De hoeveelheid CO<sub>2</sub> die wordt vrijgesteld bij de daaropvolgende verbranding, wordt gemeten door middel van infrarood spectrometrie en is een directe maat voor het anorganisch koolstofgehalte.
+
+De **bepaling van de carbonaten** in het analytisch laboratorium gebeurt volgens SAP-258B.
+Bij deze bepaling wordt een zuur-base titratie uitgevoerd met zoutzuur en worden de carbonaten omgevormd naar CO<sub>2</sub>.
+Deze manier is een indirecte inschatting van het anorganisch koolstofgehalte, waarbij wordt verondersteld dat enkel cabonaten reageren tijdens de titratie.
+Indien andere stoffen reageren met tijdens de titratie, dan wordt het gehalte aan carbonaten overschat.
+Het gehalte aan anorganische koolstof kan berekend worden uit de moleculaire massa van CaCO<sub>3</sub> (100 g/mol) en koolstof (12 g/mol).
+
+Er zijn 20 verschillende **pH testen** in het labo voor bodemstalen.
+Bij elke methode kan de zuurtegraad volumetrisch en gravimetrisch worden bepaald.
+Bij de volumetrische bepaling wordt een volume staal afgemeten en bij gravimetrische bepaling een bepaald gewicht.
+Daarnaast kan de verhouding vast:vloeibaar varieren van 1/5 tem 1/20.
+Het analytisch laboratorium heeft tot op heden voor bodemmonsters altijd de verhouding 1/5 gebruikt.
+Alle methoden gebruikt voor de bepaling van de zuurtegraad (pH) op bodemstalen woren in dit rapport samengebracht in de 3 hoofdcategorieën (pH op H<sub>2</sub>O, CaCl<sub>2</sub> of KCl).
+Wanneer er meerdere metingen van hetzelfde type zijn voor een bepaald staal, dan wordt het minimum genomen.
 
 We gebruiken enkel de data waarvoor de koolstofmeting meer dan 0 aangeeft.
+Dit om te vermijden dat waarden worden meegenomen waarbij geen meting van anorganische koolstof (TIC of CaCO3) is uitgevoerd, maar waarbij een nulwaarde is geïntroduceerd louter op basis van de pH.
 
 De verbanden tussen de anorganische koolstof en de pH worden grafisch voorgesteld.
-
 
 # Resultaten
 
@@ -127,7 +144,6 @@ write_csv2(df_ph_bruno_pivot, file = "pH waarden voor projectstalen sedert 2015.
 
 ```
 
-
 ```{r analysedata}
 
 clamp_caco3 <- 10 / 100 * 12
@@ -159,7 +175,7 @@ df_ana <- bind_rows(df_tic |> select(original_sample, c_sample_matrix, analyse, 
 
 De aantallen zijn de metingen voor stalen die voldoen aan het criterium zoals beschreven in de manier van werken.
 
-Om anorganische koolstof te meten is voornamelijk de TIC analyse gebruikt. 
+Om anorganische koolstof te meten is voornamelijk de TIC analyse gebruikt.
 pH op KCl wordt het minst gemeten en de metingen gebeuren bijna uitsluitend voor de TIC analyse.
 
 ```{r aantallenTot}
@@ -183,6 +199,7 @@ df_ana |>
   geom_bar() +
   labs(x = "pH analyse", y = expression(aantal~TIC~metingen))
 ```
+
 ```{r aantallenCACO3}
 df_ana |> 
   filter(!is.na(CACO3_TIT_V)) |> 
@@ -195,14 +212,12 @@ df_ana |>
 
 ```
 
-
 ## Verbanden tussen pH-waarden
 
 De verschillende pH-methoden leveren andere pH-waarden op.
-Onderstaande figuren toont de verbanden tussen kalium- en calciumchloride enerzijds en water anderzijds.
-In het in de steekproef voorkomende bereik zijn de pH waarden op CaCl<sub>2</sub> nauwkeurig te berekenen door ca. 0.6 af te trekken van de waarden op water.
-
-
+Onderstaande figuren toont de verbanden tussen zuurtegraad kalium- en calciumchloride enerzijds en water anderzijds.
+In het in de steekproef voorkomende bereik zijn de pH waarden op CaCl<sub>2</sub> nauwkeurig te berekenen door ca.
+0.6 af te trekken van de waarden op water.
 
 ```{r lmod, results='asis'}
 lmod <- lm(pH_CaCl2 ~ pH_H2O, data = df_ana)
@@ -216,7 +231,7 @@ ggplot(df_ana, aes(x = pH_H2O, y = pH_CaCl2)) + geom_point() + geom_smooth() +
 
 ```
 
-Het verband tussen de pH op KCl en de andere methoden is minder eenduidig op basis van de hier gebruikte dataset.
+Het verband tussen de zuurtegraad met KCl en de andere methoden is minder eenduidig op basis van de hier gebruikte dataset.
 
 ```{r phplots2, warning=FALSE, message=FALSE}
 ggplot(df_ana, aes(x = pH_H2O, y = pH_KCl)) + geom_point() + geom_smooth() +
@@ -224,13 +239,13 @@ ggplot(df_ana, aes(x = pH_H2O, y = pH_KCl)) + geom_point() + geom_smooth() +
   labs(x = expression(pH~(H[2]*O)), y = expression(pH~(KCl)))
 ```
 
-
 ## Verbanden anorganische koolstof met pH
 
-### verband met pH op water
+GG: misschien ook telkens het aantal waarnemingen weergeven onder de grenswaarde 5.5 en 6.5
 
-Puur grafisch kan je besluiten dat de hoeveelheid koolstof via de analyser inderdaad zoals vooropgesteld heel laag is waardoor de koolstofanalyse niet heel nuttig is bij pH < 6.5.
+### Verband met pH-water
 
+Puur grafisch kan je besluiten dat de hoeveelheid koolstof via de analyser inderdaad zoals vooropgesteld heel laag is waardoor de koolstofanalyse niet heel nuttig is bij pH \< 6.5.
 
 ```{r tich2o, warning = FALSE, message = FALSE}
 ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_H2O , y = C_TIC_ANALYSER)) +
@@ -245,7 +260,6 @@ ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_H2O , y = C_TIC_ANAL
 
 Voor calciumcarbonaat begint er vanaf een pH van 5.5 toch al wat koolstof gevonden worden.
 
-
 ```{r co3h2o, warning = FALSE, message = FALSE}
 ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_H2O, y = CACO3_TIT_V)) +
   geom_point() +
@@ -256,9 +270,9 @@ ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_H2O, y = CACO3_TIT_V)) 
   xlab(expression(pH~(H[2]*O)))+ ylab(expression(g/kg~C~(CaCO[3]~titrator)))
 ```
 
-### Verband met pH op KCl
+### Verband met pH-KCl
 
-Voor KCl lijkt het verband vrij vergelijkbaar met voor pH water, al is er te weinig data aanwezig om een veilige conclusie te trekken rond calciumkarbonaat.
+Voor KCl lijkt het verband vrij vergelijkbaar met voor pH water, al is er te weinig data aanwezig om een veilige conclusie te trekken rond calciumcarbonaat.
 
 ```{r tickcl, warning = FALSE, message = FALSE}
 ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_KCl , y = C_TIC_ANALYSER)) +
@@ -270,7 +284,6 @@ ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_KCl , y = C_TIC_ANAL
   xlab("pH (KCl)") + ylab(expression(g/kg~C~(tic~analyser)))
 ```
 
-
 ```{r co3kcl, warning = FALSE, message = FALSE}
 ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_KCl, y = CACO3_TIT_V)) +
   geom_point() +
@@ -281,9 +294,12 @@ ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_KCl, y = CACO3_TIT_V)) 
   xlab("pH (KCl)") + ylab(expression(g/kg~C~(CaCO[3]~titrator)))
 ```
 
-### verband met pH op CaCl<sub>2</sub>
+### Verband met pH-CaCl<sub>2</sub>
 
-Doordat de pH-waarden van calciumchloride bijna hetzelfde zijn als die op water met 0.6 verminderd. Conservatief leggen we dan best de grens voor calciumchloride op 5.5. voor TIC metingen. Voor calciumcarbonaatmetingen zou de grens beter nog iets lager liggen.
+Doordat de pH-waarden van calciumchloride bijna hetzelfde zijn als de waarden die bepaald zijn met pH-water, kan de pH-CaCl<sub>2</sub> berekend worden uit de pH-H<sub>2</sub>O, door de waarde te verminderen met een factor 0.6.
+Conservatief leggen we dan best de grens voor calciumchloride op 5.5.
+voor TIC metingen.
+Voor calciumcarbonaatmetingen zou de grens beter nog iets lager liggen.
 
 ```{r ticcacl, warning = FALSE, message = FALSE}
 ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_CaCl2 , y = C_TIC_ANALYSER)) +
@@ -294,7 +310,6 @@ ggplot(df_ana |> filter(C_TIC_ANALYSER > 0.001), aes(x = pH_CaCl2 , y = C_TIC_AN
   scale_x_continuous(breaks = seq(1, 12, by = 0.5)) +
   xlab(expression(pH~(CaCl[2]))) + ylab(expression(g/kg~C~(tic~analyser)))
 ```
-
 
 ```{r co3cacl, warning = FALSE, message = FALSE}
 ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_CaCl2, y = CACO3_TIT_V)) +
@@ -308,4 +323,10 @@ ggplot(df_ana |> filter(CACO3_TIT_V > 0.001), aes(x = pH_CaCl2, y = CACO3_TIT_V)
 
 # Conclusie
 
-Het is plausibel om geen koolstof te meten voor lage pH-waarden, en de grens hangt af per methode. Een grens van 6.5 voor pH op water en kaliumchloride lijkt ok voor TIC metingen, voor CaCo3 metingen is meer voorzichtigheid nodig. Een grens van pH op calciumchloride van 5.5 lijkt een goede keuze, al blijft het opletten met metingen op calciumcarbonaat.
+De veronderstelling om geen anorganische koolstof te meten wanneer de pH-waarde voldoende laag is, wordt bevestigd.
+Een algemene grenswaarde bij de bepaling van de zuurtegraad met verschillende methoden lijkt niet haalbaar.
+
+-   Bij de bepaling van de zuurtegraad met **water** en **kaliumchoride**, is een grenswaarde voor pH van **6.5** haalbaar, terwijl bij de bepaling van de zuurtegraad met **calciumchloride** een grenswaarde voor pH van **5.5** aangewezen lijkt.
+
+-   Deze conclusie is vooral van toepassing wanneer de anorgansiche koolstof is bepaald met de directe methode (TIC op analyser) en minder pausibel wanneer het gehalte aan anorganische koolstof is bepaald met de indirecte methode (titratie van carbonaten).
+    Dit is mogelijk het gevolg omdat bij de indirecte methode naast koolstof ook andere elementen kunnen bepaald, waardoor het anorganisch koolstofgehalte wordt overschat.

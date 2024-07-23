@@ -46,8 +46,10 @@ inst/*.html
 /*_cache/
 /cache/
 
+
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
 .Rproj.user
 *.log
+inbolimsintern/inst/user_scripts/output
