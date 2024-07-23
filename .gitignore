@@ -52,4 +52,4 @@ inst/*.html
 *.knit.md
 .Rproj.user
 *.log
-inbolimsintern/inst/user_scripts/output
+lims_db_bevraging/output

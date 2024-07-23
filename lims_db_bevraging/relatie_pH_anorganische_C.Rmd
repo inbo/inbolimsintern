@@ -1,7 +1,9 @@
 ---
-author: "Pieter Verschelde"
+author: 
+    - "Pieter Verschelde"
+    - "Gerrit Genouw"
 title: "Onderzoek relatie pH met anorganische koolstof"
-date: "2024-07-15"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   bookdown::html_document2:
     toc: true
@@ -11,6 +13,8 @@ output:
 editor_options: 
   markdown: 
     wrap: sentence
+
+    
 ---
 
 # Inleiding
