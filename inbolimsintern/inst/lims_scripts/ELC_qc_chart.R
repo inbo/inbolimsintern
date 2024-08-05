@@ -17,7 +17,7 @@ try({
   params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 }, outFile = logfile)
 
-writeLines(con = logfile, "params\n------\n")
+writeLines(con = logfile, "\n\nparams:\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
@@ -32,9 +32,6 @@ try({
   #  }
 }, outFile = logfile)
 
-writeLines(con = logfile, "\nsql file, html file, maxpoints\n------\n")
-cat(paste(sqlfile, htmlfile, maxpoints, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
-
 ## Data
 
 htmlrootshort <- substring(htmlfile,
@@ -42,29 +39,25 @@ htmlrootshort <- substring(htmlfile,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 
-writeLines(con = logfile, "\nhtml short en path\n------\n")
+writeLines(con = logfile, "\nhtml:\n")
 cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
 
-alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
-writeLines(con = logfile, "\nalldata\n------\n")
-cat(str(alldata), "\n", file = logfile, append = TRUE)
-
-
+alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
 
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 
-writeLines(con = logfile, "\ncombis before elimination mu\n------\n")
+writeLines(con = logfile, "\ncombis\n------\n")
 cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
 
 
-#solve unnicode mu character
-alldata <- alldata %>%
-  mutate(combi = gsub('\xb5m', 'um', combi)) %>%
-  mutate(combi = gsub('<b5>m', 'um', combi)) %>%
-  mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
-  mutate(combi = gsub('<b5>S', 'uS', combi))
-combis <- unique(alldata$combi)
+#solve unicode mu character
+# alldata <- alldata %>%
+#   mutate(combi = gsub('\xb5m', 'um', combi)) %>%
+#   mutate(combi = gsub('<b5>m', 'um', combi)) %>%
+#   mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
+#   mutate(combi = gsub('<b5>S', 'uS', combi))
 
+combis <- unique(alldata$combi)
 writeLines(con = logfile, "\ncombis after elimination mu\n------\n")
 cat(combis, sep = "\n", file = logfile, append = TRUE)
 
@@ -95,15 +88,12 @@ for (comb in combis) {
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
   figpath <- paste0(htmlpath, "\\", figpathshort)
 
-
-  cat("\n*************\nCOMBI: \n", comb, file = logfile, append = TRUE)
+  cat("\nCOMBI: ", comb, file = logfile, append = TRUE)
 
   plotdata <- alldata %>% filter(comb == combi)
+  cat("\nrijen plotdata: " , nrow(plotdata),file = logfile, append = TRUE)
   htmldata <- elc_htmldata(plotdata)
-
-
-  cat(str(plotdata), "\n", file = logfile, append = TRUE)
-  cat(str(htmldata), "\n",file = logfile, append = TRUE)
+  cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
 
   p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 300)
@@ -133,7 +123,7 @@ for (comb in combis) {
   }
 
 
-  cat(paste0("\neinde van ", comb), file = logfile, append = TRUE)
+  cat(paste0("\nEINDE"), file = logfile, append = TRUE)
 }
 
 #Afronden file en html tonen
