@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LIMS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation='labware-lims.xsd'>
+
+    <ACCESS_ROUTINES>
+        <NAME>RSLT_FOLDR</NAME>
+        <GROUP_NAME>DEFAULT</GROUP_NAME>
+        <DESCRIPTION>Result Folder</DESCRIPTION>
+        <NUM_ARGS>12</NUM_ARGS>
+        <TYPE>F</TYPE>
+        <ARGUMENT1>Sample.Status</ARGUMENT1>
+        <ARGUMENT2>Sample.Login_Date</ARGUMENT2>
+        <ARGUMENT3>Sample.Product</ARGUMENT3>
+        <ARGUMENT4>Sample.Customer</ARGUMENT4>
+        <ARGUMENT5>Sample.Project</ARGUMENT5>
+        <ARGUMENT6>Test.Status</ARGUMENT6>
+        <ARGUMENT7>Test.Analysis</ARGUMENT7>
+        <ARGUMENT8>Result.Status</ARGUMENT8>
+        <ARGUMENT9>Result.Name</ARGUMENT9>
+        <ARGUMENT10>Result.In_Spec</ARGUMENT10>
+        <ARGUMENT11>SQL</ARGUMENT11>
+        <ARGUMENT12>Order By</ARGUMENT12>
+        <ARGUMENT13></ARGUMENT13>
+        <ARGUMENT14></ARGUMENT14>
+        <ARGUMENT15></ARGUMENT15>
+        <ARGUMENT16></ARGUMENT16>
+        <ARGUMENT17></ARGUMENT17>
+        <ARGUMENT18></ARGUMENT18>
+        <ARGUMENT19></ARGUMENT19>
+        <ARGUMENT20></ARGUMENT20>
+        <ROUTINE>RESULT</ROUTINE>
+        <CHANGED_ON>1999-10-26T18:38:00.000-00:00</CHANGED_ON>
+        <CHANGED_BY>CET_USER</CHANGED_BY>
+        <REMOVED>false</REMOVED>
+    </ACCESS_ROUTINES>
+
+
+</LIMS>

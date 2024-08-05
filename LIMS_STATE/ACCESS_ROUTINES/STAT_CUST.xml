@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LIMS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation='labware-lims.xsd'>
+
+    <ACCESS_ROUTINES>
+        <NAME>STAT_CUST</NAME>
+        <GROUP_NAME>DEFAULT</GROUP_NAME>
+        <DESCRIPTION>Access Routine for the status report per customer</DESCRIPTION>
+        <NUM_ARGS>9</NUM_ARGS>
+        <TYPE>R</TYPE>
+        <ARGUMENT1>@FullName</ARGUMENT1>
+        <ARGUMENT2>@UserName</ARGUMENT2>
+        <ARGUMENT3>@Querytag</ARGUMENT3>
+        <ARGUMENT4>@ODBC_Name</ARGUMENT4>
+        <ARGUMENT5>@DateFormat</ARGUMENT5>
+        <ARGUMENT6>@Daterange</ARGUMENT6>
+        <ARGUMENT7>Sample.Recd_date</ARGUMENT7>
+        <ARGUMENT8>Sample.Customer</ARGUMENT8>
+        <ARGUMENT9>@cust</ARGUMENT9>
+        <ARGUMENT10></ARGUMENT10>
+        <ARGUMENT11></ARGUMENT11>
+        <ARGUMENT12></ARGUMENT12>
+        <ARGUMENT13></ARGUMENT13>
+        <ARGUMENT14></ARGUMENT14>
+        <ARGUMENT15></ARGUMENT15>
+        <ARGUMENT16></ARGUMENT16>
+        <ARGUMENT17></ARGUMENT17>
+        <ARGUMENT18></ARGUMENT18>
+        <ARGUMENT19></ARGUMENT19>
+        <ARGUMENT20></ARGUMENT20>
+        <ROUTINE>Status_summary_customer.rpt</ROUTINE>
+        <CHANGED_ON>2007-11-13T09:51:34.000-00:00</CHANGED_ON>
+        <CHANGED_BY>KBASU</CHANGED_BY>
+        <REMOVED>false</REMOVED>
+    </ACCESS_ROUTINES>
+
+
+</LIMS>

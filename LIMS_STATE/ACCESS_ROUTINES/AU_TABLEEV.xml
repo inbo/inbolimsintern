@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LIMS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation='labware-lims.xsd'>
+
+    <ACCESS_ROUTINES>
+        <NAME>AU_TABLEEV</NAME>
+        <GROUP_NAME>DEFAULT</GROUP_NAME>
+        <DESCRIPTION>Audit Report: Table (General) by Event</DESCRIPTION>
+        <NUM_ARGS>2</NUM_ARGS>
+        <TYPE>R</TYPE>
+        <ARGUMENT1>Table_audit_rpt.parent_table</ARGUMENT1>
+        <ARGUMENT2>table_audit_rpt.parent_key</ARGUMENT2>
+        <ARGUMENT3></ARGUMENT3>
+        <ARGUMENT4></ARGUMENT4>
+        <ARGUMENT5></ARGUMENT5>
+        <ARGUMENT6></ARGUMENT6>
+        <ARGUMENT7></ARGUMENT7>
+        <ARGUMENT8></ARGUMENT8>
+        <ARGUMENT9></ARGUMENT9>
+        <ARGUMENT10></ARGUMENT10>
+        <ARGUMENT11></ARGUMENT11>
+        <ARGUMENT12></ARGUMENT12>
+        <ARGUMENT13></ARGUMENT13>
+        <ARGUMENT14></ARGUMENT14>
+        <ARGUMENT15></ARGUMENT15>
+        <ARGUMENT16></ARGUMENT16>
+        <ARGUMENT17></ARGUMENT17>
+        <ARGUMENT18></ARGUMENT18>
+        <ARGUMENT19></ARGUMENT19>
+        <ARGUMENT20></ARGUMENT20>
+        <ROUTINE>AuditTableEvent.rpt</ROUTINE>
+        <CHANGED_ON>2002-10-28T11:44:53.000-00:00</CHANGED_ON>
+        <CHANGED_BY>SYSTEM</CHANGED_BY>
+        <REMOVED>false</REMOVED>
+    </ACCESS_ROUTINES>
+
+
+</LIMS>

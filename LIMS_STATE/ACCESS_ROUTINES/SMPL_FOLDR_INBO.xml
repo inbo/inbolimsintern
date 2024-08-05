@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LIMS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation='labware-lims.xsd'>
+
+    <ACCESS_ROUTINES>
+        <NAME>SMPL_FOLDR_INBO</NAME>
+        <GROUP_NAME>INBO</GROUP_NAME>
+        <DESCRIPTION>Sample Folder</DESCRIPTION>
+        <NUM_ARGS>18</NUM_ARGS>
+        <TYPE>F</TYPE>
+        <ARGUMENT1>Sample.Status</ARGUMENT1>
+        <ARGUMENT2>Sample.Product</ARGUMENT2>
+        <ARGUMENT3>Sample.Customer</ARGUMENT3>
+        <ARGUMENT4>Sample.Login_By</ARGUMENT4>
+        <ARGUMENT5>Sample.Login_Date</ARGUMENT5>
+        <ARGUMENT6>Sample.Login_Date &lt;</ARGUMENT6>
+        <ARGUMENT7>Sample.Project</ARGUMENT7>
+        <ARGUMENT8>Test.Analysis</ARGUMENT8>
+        <ARGUMENT9>Test.Status</ARGUMENT9>
+        <ARGUMENT10>Test.Instrument</ARGUMENT10>
+        <ARGUMENT11>Analysis.Analysis_Type</ARGUMENT11>
+        <ARGUMENT12>SQL</ARGUMENT12>
+        <ARGUMENT13>Order By</ARGUMENT13>
+        <ARGUMENT14>Result.Reportable</ARGUMENT14>
+        <ARGUMENT15>SAMPLE.SAMPLE_NUMBER</ARGUMENT15>
+        <ARGUMENT16>Analysis.batch_link</ARGUMENT16>
+        <ARGUMENT17>Sample.T_Login_Verified</ARGUMENT17>
+        <ARGUMENT18>Sample.Template</ARGUMENT18>
+        <ARGUMENT19></ARGUMENT19>
+        <ARGUMENT20></ARGUMENT20>
+        <ROUTINE>SAMPLE</ROUTINE>
+        <CHANGED_ON>2013-10-28T09:30:19.000-00:00</CHANGED_ON>
+        <CHANGED_BY>PIETERVS</CHANGED_BY>
+        <REMOVED>false</REMOVED>
+    </ACCESS_ROUTINES>
+
+
+</LIMS>

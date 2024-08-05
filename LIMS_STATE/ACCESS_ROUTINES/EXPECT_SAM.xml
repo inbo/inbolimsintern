@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LIMS xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation='labware-lims.xsd'>
+
+    <ACCESS_ROUTINES>
+        <NAME>EXPECT_SAM</NAME>
+        <GROUP_NAME>DEFAULT</GROUP_NAME>
+        <DESCRIPTION>Shows Samples/Tests shipped to another Location but not received.</DESCRIPTION>
+        <NUM_ARGS>3</NUM_ARGS>
+        <TYPE>R</TYPE>
+        <ARGUMENT1>Sample.Status</ARGUMENT1>
+        <ARGUMENT2>Sample.Location</ARGUMENT2>
+        <ARGUMENT3>Parent.Location</ARGUMENT3>
+        <ARGUMENT4></ARGUMENT4>
+        <ARGUMENT5></ARGUMENT5>
+        <ARGUMENT6></ARGUMENT6>
+        <ARGUMENT7></ARGUMENT7>
+        <ARGUMENT8></ARGUMENT8>
+        <ARGUMENT9></ARGUMENT9>
+        <ARGUMENT10></ARGUMENT10>
+        <ARGUMENT11></ARGUMENT11>
+        <ARGUMENT12></ARGUMENT12>
+        <ARGUMENT13></ARGUMENT13>
+        <ARGUMENT14></ARGUMENT14>
+        <ARGUMENT15></ARGUMENT15>
+        <ARGUMENT16></ARGUMENT16>
+        <ARGUMENT17></ARGUMENT17>
+        <ARGUMENT18></ARGUMENT18>
+        <ARGUMENT19></ARGUMENT19>
+        <ARGUMENT20></ARGUMENT20>
+        <ROUTINE>CLT_ExpectedSamples.rpt</ROUTINE>
+        <CHANGED_ON>2008-09-08T05:26:47.000-00:00</CHANGED_ON>
+        <CHANGED_BY>TMOORE</CHANGED_BY>
+        <REMOVED>false</REMOVED>
+    </ACCESS_ROUTINES>
+
+
+</LIMS>

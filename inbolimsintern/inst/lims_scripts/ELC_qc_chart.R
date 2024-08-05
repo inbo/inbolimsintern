@@ -10,7 +10,7 @@ logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 3848 4280 4283 5302 5309 5471 5597 6241 6605
+call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 5471 5597 6241 6605 8628
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -21,7 +21,7 @@ writeLines(con = logfile, "params\n------\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
-  maxpoints_orig <- 30 #indien max_points bestaat zordt dit overschreven door die waarde
+  maxpoints_orig <- 30 #indien max_points bestaat wordt dit overschreven door die waarde
   sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
   maxpoints <- try(filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% as.integer())
@@ -32,14 +32,30 @@ try({
   #  }
 }, outFile = logfile)
 
+writeLines(con = logfile, "\nsql file, html file, maxpoints\n------\n")
+cat(paste(sqlfile, htmlfile, maxpoints, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
+
 ## Data
 
 htmlrootshort <- substring(htmlfile,
                            max(unlist(gregexpr("\\\\", htmlfile))) + 1,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
+
+writeLines(con = logfile, "\nhtml short en path\n------\n")
+cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
+
 alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
+writeLines(con = logfile, "\nalldata\n------\n")
+cat(str(alldata), "\n", file = logfile, append = TRUE)
+
+
+
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
+
+writeLines(con = logfile, "\ncombis before elimination mu\n------\n")
+cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
+
 
 #solve unnicode mu character
 alldata <- alldata %>%
@@ -48,6 +64,9 @@ alldata <- alldata %>%
   mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
   mutate(combi = gsub('<b5>S', 'uS', combi))
 combis <- unique(alldata$combi)
+
+writeLines(con = logfile, "\ncombis after elimination mu\n------\n")
+cat(combis, sep = "\n", file = logfile, append = TRUE)
 
 ## INIT html
 
@@ -75,10 +94,16 @@ for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
   figpath <- paste0(htmlpath, "\\", figpathshort)
-  cat("\n", comb, file = logfile, append = TRUE)
+
+
+  cat("\n*************\nCOMBI: \n", comb, file = logfile, append = TRUE)
 
   plotdata <- alldata %>% filter(comb == combi)
   htmldata <- elc_htmldata(plotdata)
+
+
+  cat(str(plotdata), "\n", file = logfile, append = TRUE)
+  cat(str(htmldata), "\n",file = logfile, append = TRUE)
 
   p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 300)
