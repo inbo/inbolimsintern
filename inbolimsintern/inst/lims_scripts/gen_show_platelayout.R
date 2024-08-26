@@ -10,7 +10,7 @@ library(inbolimsintern)
 library(DBI)
 
 logfile <- logfile_start(prefix = "PLATELAYOUT")
-call_id <- 0 #630 505 515 516 518
+call_id <- 0 #630 505 515 516 518 8109
 
 try({
   args <- inbolimsintern::prepare_session(call_id)

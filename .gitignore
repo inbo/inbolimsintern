@@ -2,6 +2,7 @@
 .Rhistory
 .Rapp.history
 
+
 #credentials
 dbcredentials.txt
 figure_html/
@@ -13,10 +14,15 @@ tijdelijk/
 workdir/
 _NOT_GIT_/
 lims_db_bevraging/output/
+.secrets
+LIMS_STATE/
 
 # Session Data files
 .RData
 .RHistory
+
+#credentials
+.secrets
 
 # Example code in package build process
 *-Ex.R
@@ -43,8 +49,10 @@ inst/*.html
 /*_cache/
 /cache/
 
+
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
 .Rproj.user
 *.log
+lims_db_bevraging/output
