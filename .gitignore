@@ -2,6 +2,7 @@
 .Rhistory
 .Rapp.history
 
+
 #credentials
 dbcredentials.txt
 figure_html/
@@ -13,6 +14,8 @@ tijdelijk/
 workdir/
 _NOT_GIT_/
 lims_db_bevraging/output/
+.secrets
+LIMS_STATE/
 
 # Session Data files
 .RData
