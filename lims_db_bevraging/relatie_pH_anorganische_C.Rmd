@@ -37,7 +37,7 @@ date_end <- "2024-07-08"
 
 ## Vraagstelling
 
-In het analytisch laboratorium hebben we een afspraak met de onderzoekers om geen anorganische koolstof niet te meten indien pH-waarde kleiner is dan 6.5.
+In het analytisch laboratorium hebben we een afspraak met de onderzoekers om anorganische koolstof niet te meten indien pH-waarde kleiner is dan 6.5.
 Hierbij wordt verondersteld dat onder deze omstandigheden geen anorganische koolstof aanwezig is in het bodemmonster.
 
 In het verleden was deze pH grens ingesteld op 5.5, maar bij de start van het CMON project is de grenswaarde verhoogd naar 6.5.
@@ -49,7 +49,7 @@ In praktijk wordt een klein verschil waargenomen tussen de verschillende pH bepa
 
 ## Manier van werken
 
-We verzamelen in het LIMS alle gegevens die in het analytisch laboratoirum gemeten in de periode van 1 januari 2015 tot en met 8 juli 2024, waarvoor anorganische koolstof is gemeten via de analyser (C_TIC_ANALYSER) of anorganische koolstof is berekend uit de bepaling van calciumcarbonaat volgens de analyse (CACO3_TIT_V).
+We verzamelen in het LIMS alle gegevens die in het analytisch laboratorium gemeten in de periode van 1 januari 2015 tot en met 8 juli 2024, waarvoor anorganische koolstof is gemeten via de analyser (C_TIC_ANALYSER) of anorganische koolstof is berekend uit de bepaling van calciumcarbonaat volgens de analyse (CACO3_TIT_V).
 Daarnaast moet voor elk van deze metingen ook minstens een pH-meting aanwezig zijn.
 
 De **bepaling van anorganische koolstof** in het analytisch laboratorium gebeurt volgens SAP-253C.
@@ -65,13 +65,13 @@ Het gehalte aan anorganische koolstof kan berekend worden uit de moleculaire mas
 Er zijn 20 verschillende **pH testen** in het labo voor bodemstalen.
 Bij elke methode kan de zuurtegraad volumetrisch en gravimetrisch worden bepaald.
 Bij de volumetrische bepaling wordt een volume staal afgemeten en bij gravimetrische bepaling een bepaald gewicht.
-Daarnaast kan de verhouding vast:vloeibaar varieren van 1/5 tem 1/20.
+Daarnaast kan de verhouding vast/vloeibaar variëren van 1/5 tem 1/20.
 Het analytisch laboratorium heeft tot op heden voor bodemmonsters altijd de verhouding 1/5 gebruikt.
 Alle methoden gebruikt voor de bepaling van de zuurtegraad (pH) op bodemstalen woren in dit rapport samengebracht in de 3 hoofdcategorieën (pH op H<sub>2</sub>O, CaCl<sub>2</sub> of KCl).
 Wanneer er meerdere metingen van hetzelfde type zijn voor een bepaald staal, dan wordt het minimum genomen.
 
 We gebruiken enkel de data waarvoor de koolstofmeting meer dan 0 aangeeft.
-Dit om te vermijden dat waarden worden meegenomen waarbij geen meting van anorganische koolstof (TIC of CaCO3) is uitgevoerd, maar waarbij een nulwaarde is geïntroduceerd louter op basis van de pH.
+Dit om te vermijden dat waarden worden meegenomen waarbij geen meting van anorganische koolstof (TIC of CaCO<sub>3</sub>) is uitgevoerd, maar waarbij een nulwaarde is geïntroduceerd louter op basis van de pH.
 
 De verbanden tussen de anorganische koolstof en de pH worden grafisch voorgesteld.
 
