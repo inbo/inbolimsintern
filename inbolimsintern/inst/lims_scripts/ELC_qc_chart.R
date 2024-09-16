@@ -96,7 +96,7 @@ for (comb in combis) {
   cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
 
   p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
-  ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 300)
+  ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 200)
 
   cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
   cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
