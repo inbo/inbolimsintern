@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "CTR_SAVE")
 writeLines(con = logfile, paste0("Bewaren archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5388 5590
+call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5388 5590 8964
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -45,7 +45,7 @@ try({
   cat("\n", sqlcode, file = logfile, append = TRUE)
 
   #haal data binnen (deze bevat reeds de limieten)
-  alldata<- get_ELC_data(conn, sqlfile, keep = Inf) %>%
+  alldata<- get_ELC_data(conn, sqlfile, keep = Inf, logfile = logfile) %>%
     filter(C_CTR_ADD == 'T')
 
 }, outFile = logfile)
