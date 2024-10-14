@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "CTR_SHOW")
 writeLines(con = logfile, paste0("Tonen archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 5366 5397 8375 8966
+call_id <- 0 #call_id <- 5366 5397 8375 8970
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -27,13 +27,14 @@ try({
   htmlrootshort <- substring(htmlfile, max(unlist(gregexpr("\\\\", htmlfile))) + 1, nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
   htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile)))) #including last backslash
 }, outFile = logfile)
-writeLines(con = logfile, "files (sql, html, htmlroot, path\n------\n")
-cat(paste(sqlfile, htmlfile, htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
+writeLines(con = logfile, "files (sql, html, htmlroot, path) completed\n------\n")
+cat(paste(kaartlabel, htmlfile, htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
 
 ### Haal de data binnen
 
 try({
 sqlcode <- paste0("select * from C_CTR_ARCHIVE where LABEL = '", kaartlabel, "'")
+cat("\n", sqlcode, "\n", file = logfile, append = TRUE)
 plotdata <- DBI::dbGetQuery(conn, sqlcode) %>%
   mutate(EVAL = CHECK_RULES)
 cat(nrow(plotdata),  " rijen\n", file = logfile, append = TRUE)
