@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "CTR_SHOW")
 writeLines(con = logfile, paste0("Tonen archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 5366 5397 8375
+call_id <- 0 #call_id <- 5366 5397 8375 8966
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -22,7 +22,7 @@ writeLines(con = logfile, "params\n------\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
-  sqlfile <- filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE)
+  kaartlabel <- filter(params, ARG_NAME == "KAARTLABEL") %>% pull(VALUE)
   htmlfile <- filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE)
   htmlrootshort <- substring(htmlfile, max(unlist(gregexpr("\\\\", htmlfile))) + 1, nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
   htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile)))) #including last backslash
@@ -33,7 +33,7 @@ cat(paste(sqlfile, htmlfile, htmlrootshort, htmlpath, sep = "\n"), sep = "\n", f
 ### Haal de data binnen
 
 try({
-sqlcode <- paste(readLines(sqlfile), collapse = '\n')
+sqlcode <- paste0("select * from C_CTR_ARCHIVE where LABEL = '", kaartlabel, "'")
 plotdata <- DBI::dbGetQuery(conn, sqlcode) %>%
   mutate(EVAL = CHECK_RULES)
 cat(nrow(plotdata),  " rijen\n", file = logfile, append = TRUE)
@@ -70,7 +70,14 @@ for (comb in combis) {
   p <- ELC_shewhart_plot(subdata, base_color = NULL)
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 300)
   cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
-  cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"), file = htmlfile, append = TRUE)
+
+  #normale manier
+  #cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"), file = htmlfile, append = TRUE)
+
+  #self-contained html
+  base64_image <- base64enc::dataURI(file = figpath, mime = "image/png")
+  cat(paste0('\n<img src="', base64_image, '">\n'), file = htmlfile, append = TRUE)
+  file.remove(figpath)
 
   #add functionality for table x and s (preliminary°)
   cat(file = htmlfile, append = TRUE,
