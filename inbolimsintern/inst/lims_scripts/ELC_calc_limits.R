@@ -1,4 +1,5 @@
 #ELC - ELC CALC LIMITS
+#Maybe superseeded by ELC_qc_trend_evaluation
 
 ### R libraries
 library(inbolimsintern)
