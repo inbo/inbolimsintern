@@ -33,13 +33,13 @@ elc_htmldata <- function(plotdata,
   certified <- mean(data$C_CERTIFIED_VALUE[data$VERSION == max(data$VERSION)])
   certified_sd <- mean(data$C_CERTIFIED_SD[data$VERSION == max(data$VERSION)])
 
-  product_version <- sort(unique(data$VERSiON))
+  product_version <- paste(sort(unique(data$VERSION)), collapse = ",")
   product <- tryCatch(
     {
-      sort(unique(data$PRODUCT))
+      paste(sort(unique(data$PRODUCT)), collapse = ",")
     },
     error = function(e) {
-      return(character(0))
+      return(" ")
     }
   )
 
