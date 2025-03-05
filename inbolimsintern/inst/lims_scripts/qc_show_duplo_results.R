@@ -12,7 +12,7 @@ logfile <- logfile_start(prefix = "TLC_Duplo_Overview")
 writeLines(con = logfile, paste0("TLC_Duplo_Overview\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721 6572
+call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721 6572 9733
 digits <- 5
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -41,7 +41,7 @@ lab       <- params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
 outtype   <- params %>% filter(ARG_NAME == 'FILE_SEP') %>% pull(VALUE)
 
 qry <- paste0(
-"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
+"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
 ", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
 ", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
 ", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
@@ -66,7 +66,7 @@ df_all <- df_all %>%
 cat("aantal rijen in data: ", nrow(df_all), '\n', file = logfile, sep = "\n")
 
 
-df_pivot <- df_all %>%
+df_pivot_orig <- df_all %>%
   group_by(dupnr, sampletype, analysis, name, repli ) %>%
   summarise(waarde = mean(waarde_ruw, na.rm = TRUE),
             N = n()) %>%
@@ -74,13 +74,13 @@ df_pivot <- df_all %>%
   pivot_wider(id_cols = c(dupnr, analysis, name, repli),
               names_from = sampletype,
               values_from = waarde) %>%
-  mutate(ratio = SAMP / DUP,
-         afwijking = SAMP - DUP,
+  mutate(ratio = DUP / SAMP,
+         afwijking = DUP - SAMP,
          gemiddelde = (DUP + SAMP) / 2,
          relatief = abs(afwijking) / gemiddelde * 100) %>%
   filter(!is.na(DUP) & !is.na(SAMP))
 
-df_pivot <- df_pivot %>%
+df_pivot_orig <- df_pivot_orig %>%
   inner_join(df_all %>%
                select(textid, unit, blindparent, dupnr, date, analysis, name, repli, sampletype) %>%
                filter(sampletype == "SAMP"),
@@ -95,33 +95,55 @@ df_pivot <- df_pivot %>%
          afwijking = round(afwijking, digits), relatief = round(relatief, digits)
          )
 
+#onderzoekn waarom hier rijen bijkomen
+df_pivot <- df_pivot_orig %>%
+  ungroup() %>%
+  mutate(rownr = 1:n()) %>%
+  inner_join(df_all %>%
+               select(project, textid, product_grade, matrix) %>%
+               group_by(textid) %>%
+               summarise(project = paste(unique(project), collapse = ","),
+                         product_grade = paste(unique(product_grade), collapse = ","),
+                         matrix = paste(unique(matrix), collapse = ",")),
+             join_by(textid == textid))
+
 #bereken samenvattende statistieken en voeg die bij de dataset
 df_cvsd <- df_pivot %>%
   group_by(analysis, name, unit) %>%
   summarise(N = n(),
-            SD = round(sqrt((sum(afwijking^2)) / (2*n())), digits),
+            SD = round(sqrt((sum(afwijking^2)) / (2*n())), digits), #2n zie VITO, 2x aantal metingen
             CV = round(100 * sqrt((sum((afwijking / gemiddelde)^2) / (2*n()))),digits-2)) %>%
   transmute(dupnr = -1, repli = N, analysis, name, unit,
             textid = 'ZZZZZZ', textid_dup = 'D-ZZZZZZ-1', blindparent = NA, date_dup = NA,
             meting = NA, duplometing = NA, gemiddelde=NA, ratio=NA, afwijking=NA, relatief=NA,
             sd = SD, cv = CV)
 
-df_pivot <- bind_rows(df_pivot, df_cvsd) %>%
-  arrange(analysis, name, textid)
-cat("aantal paarsgewijze testen: ", nrow(df_pivot), '\n', file = logfile, sep = "\n")
+df_pivot_incl_smry <- bind_rows(df_pivot, df_cvsd) %>%
+  arrange(analysis, name, textid) %>%
+  transmute(Analysis = analysis, Component = name,
+            "Text-ID 1" = textid, "Datum 1" = date,
+            "Text-ID 2" = textid_dup, "Datum 2" = date_dup,
+            Project = project, Matrix = matrix, "Product grade" = product_grade,
+            "Meting 1" = meting, "Meting 2" = duplometing,
+            "Gemiddelde (x)" = gemiddelde, "Ratio" = ratio,
+            "Absoluut verschil" = afwijking,
+            "Relatief verschil" = relatief,
+            SD = sd, CV = cv)
+
+cat("aantal paarsgewijze testen: ", nrow(df_pivot_incl_smry), '\n', file = logfile, sep = "\n")
 
 Sys.sleep(2)
 
 if (outtype == "FULL") {
   cat("writing csv", sep = "\n", file = logfile, append = TRUE)
-  a <- try(write_excel_csv2(df_pivot, file = csvpath, col_names = TRUE, na = ''))
+  a <- try(write_excel_csv2(df_pivot_incl_smry, file = csvpath, col_names = TRUE, na = ''))
   cat(class(a), sep = "\n", file = logfile, append = TRUE)
 } else {
-  df_pivot$COMBI <-  interaction(df_pivot$analysis, df_pivot$name, sep = "_")
-  for (i in unique(df_pivot$COMBI)) {
+  df_pivot_incl_smry$COMBI <-  interaction(df_pivot_incl_smry$analysis, df_pivot_incl_smry$name, sep = "_")
+  for (i in unique(df_pivot_incl_smry$COMBI)) {
     partpath <- substring(csvpath, 1, nchar(csvpath) - 4)
     partpath <- paste0(partpath, "_", i, ".csv")
-    write_excel_csv2(df_pivot %>% filter(COMBI == i) %>% select(-COMBI), file = partpath, col_names = TRUE, na = '')
+    write_excel_csv2(df_pivot_incl_smry %>% filter(COMBI == i) %>% select(-COMBI), file = partpath, col_names = TRUE, na = '')
   }
 }
 Sys.sleep(2)
