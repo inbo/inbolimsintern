@@ -58,11 +58,32 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     }
   }
 
-  units =  max(subdata$UNITS)
-  units = gsub('\xb5m', 'um', units)
-  units = gsub('<b5>m', 'um', units)
-  units = gsub('\xb5S', 'uS', units)
-  units = gsub('<b5>S', 'uS', units)
+  # units =  max(subdata$UNITS)
+  # units = gsub('\xb5m', 'um', units)
+  # units = gsub('<b5>m', 'um', units)
+  # units = gsub('\xb5S', 'uS', units)
+  # units = gsub('<b5>S', 'uS', units)
+  units <- max(subdata$UNITS)
+  # Try multiple approaches to catch all possible encodings
+  units <- tryCatch({
+    gsub("\u00B5m", "um", units, fixed = FALSE)
+  }, error = function(e) {
+    tryCatch({
+      gsub("<b5>m", "um", units)
+    }, error = function(e) {
+      gsub("µm", "um", units, fixed = TRUE)
+    })
+  })
+  # Same for the S variant
+  units <- tryCatch({
+    gsub("\u00B5S", "uS", units, fixed = FALSE)
+  }, error = function(e) {
+    tryCatch({
+      gsub("<b5>S", "uS", units)
+    }, error = function(e) {
+      gsub("µS", "uS", units, fixed = TRUE)
+    })
+  })
 
   p <-
     ggplot(subdata, aes(x = .data$BATCHNR, y = .data$ENTRY)) +
