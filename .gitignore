@@ -4,7 +4,7 @@
 
 
 #credentials
-dbcredentials.txt
+dbcredentials*.txt
 figure_html/
 index.html
 platereport.csv
