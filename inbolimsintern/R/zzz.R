@@ -6,6 +6,7 @@
   #
   #}
   path <- "\\\\limsbgops.inbo.be\\Labware7\\LabWare-7\\Data\\R_SCRIPTS"
+  #path <- "D:\\LWL8DEV\\Data\\R_SCRIPTS"
   try(copy_scripts_to_lims_path(path))
 }
 
