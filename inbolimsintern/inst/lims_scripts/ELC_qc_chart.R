@@ -95,12 +95,21 @@ for (comb in combis) {
   htmldata <- elc_htmldata(plotdata)
   cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
 
+  cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
+
   p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 200)
 
-  cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
-  cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
-      file = htmlfile, append = TRUE)
+  #self-contained html
+  base64_image <- base64enc::dataURI(file = figpath, mime = "image/png")
+  cat(paste0('\n<img src="', base64_image, '">\n'), file = htmlfile, append = TRUE)
+  file.remove(figpath)
+
+
+  #oude manier (aparte bestanden)
+  #cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
+  #    file = htmlfile, append = TRUE)
+
   cat(knitr::kable(htmldata[['summary']], format = "html", table.attr = "style='width:40%;'") %>%
         kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
       file = htmlfile, append = TRUE)
