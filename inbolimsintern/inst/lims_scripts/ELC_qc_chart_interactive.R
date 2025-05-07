@@ -1,16 +1,24 @@
 #ELC - Make QC chart html report
 
 ### R libraries
+
 library(inbolimsintern)
 library(DBI)
 library(tidyverse)
+library(plotly)
+library(DT)
+library(htmltools)
+library(htmlwidgets)
 
-### Logfile
+### Init Logfile
+
+
+### Read LIMS arguments
+
+call_id <- 0 #call_id <- 10016
 logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
-### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 5471 5597 6241 6605 8628 10016
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -32,8 +40,6 @@ try({
   #  }
 }, outFile = logfile)
 
-## Data
-
 htmlrootshort <- substring(htmlfile,
                            max(unlist(gregexpr("\\\\", htmlfile))) + 1,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
@@ -42,113 +48,125 @@ htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 writeLines(con = logfile, "\nhtml:\n")
 cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
 
-alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
+### Data import
 
+alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 
 writeLines(con = logfile, "\ncombis\n------\n")
 cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
 
+combis <- data.frame(combi = unique(alldata$combi))
+combis <- cbind(combis, separate(combis,
+                                 col = "combi",
+                                 into = c("ana", "qc", "comp"),
+                                 sep = "---")) %>%
+  arrange(ana, comp, qc)
 
-#solve unicode mu character
-# alldata <- alldata %>%
-#   mutate(combi = gsub('\xb5m', 'um', combi)) %>%
-#   mutate(combi = gsub('<b5>m', 'um', combi)) %>%
-#   mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
-#   mutate(combi = gsub('<b5>S', 'uS', combi))
-
-combis <- unique(alldata$combi)
 writeLines(con = logfile, "\ncombis after elimination mu\n------\n")
-cat(combis, sep = "\n", file = logfile, append = TRUE)
-
-## INIT html
-
-#htmlstart <- paste0('<HTML>\n<HEAD> call_id: ', args["call_id"], '</HEAD>\n<BODY>\n')
-
-htmlstart <- paste0('<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>call_id: ', args["call_id"], '</title>')
-cat(htmlstart, file = htmlfile, append = FALSE)
-file.append(htmlfile,
-            system.file(file.path("resources", "qc_charts.css"),
-                        package = "inbolimsintern"))
-cat('</HEAD>\n<BODY>\n', file = htmlfile, append = TRUE)
-
-cat("<H1>Leeswijzer</H1>",
-"\n\nDe blauwe punten worden niet gebruikt bij de berekeningen",
-"Overtredingen van regels worden in de figuur en tabel aangeduid.",
-"<ul>",
-"  <li>Punt telt niet mee: blauwe bol, eval = . </li>",
-"  <li>Correct punt: groene bol, eval = ------ </li>",
-"  <li>R1: Buiten 3 sigma: rode bol, eval = R1</li>",
-"  <li>R2a: 2 opeenvolgend buiten 2 sigma, zelfde kant: rode bol, eval = R2</li>",
-"  <li>R3: 9 opeenvolgende buiten aan zelfde kant gemiddelde: gele bol, eval = R3</li>",
-"  <li>R4: 6 opeenvolgende met toenemede of dalende trend: gele bol, eval = R4</li>",
-"</ul>",
-"<H1>Controlekaarten</H1>",
-"\n", sep = "\n", file = htmlfile, append = TRUE)
-
-## Loop through each sample_name, component combination
-#archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
+cat(combis$combi, sep = "\n", file = logfile, append = TRUE)
 
 
-for (comb in combis) {
+###############################################################################
+### CREATE WIDGETS
+###############################################################################
+plot_widgets <- list()
+for (i in 1:nrow(combis)) {
+  pltly <-  plotdata <- htmldata <- NULL
+  comb <- combis$combi[i]
   print(comb)
-  figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
-  figpath <- paste0(htmlpath, "\\", figpathshort)
-
-  cat("\nCOMBI: ", comb, file = logfile, append = TRUE)
-
-  plotdata <- alldata %>% filter(comb == combi)
+  subtitle = paste(paste0("analyse:   ", combis$ana[i]),
+                paste0("qc sample: ", combis$qc[i]),
+                paste0("component: ",combis$comp[i]),
+                sep = "\n") #via labs(subtitle = subtitle)
+  plotdata <- alldata %>% filter(combi == comb)
   cat("\nrijen plotdata: " , nrow(plotdata),file = logfile, append = TRUE)
   htmldata <- elc_htmldata(plotdata)
   cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
 
-  cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
-
-  p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
-  ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 200)
-
-  #self-contained html
-  base64_image <- base64enc::dataURI(file = figpath, mime = "image/png")
-  cat(paste0('\n<img src="', base64_image, '">\n'), file = htmlfile, append = TRUE)
-  file.remove(figpath)
-
-
-  #oude manier (aparte bestanden)
-  #cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
-  #    file = htmlfile, append = TRUE)
-
-  cat(knitr::kable(htmldata[['summary']], format = "html", table.attr = "style='width:40%;'") %>%
-        kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
-      file = htmlfile, append = TRUE)
-  cat(knitr::kable(htmldata[['tabel']] %>% filter(EVAL != "."), format = "html", table.attr = "style='width:40%;'") %>%
-        kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
-      file = htmlfile, append = TRUE)
-  fxavg <- htmldata[['summary']] %>% filter(param == "gem") %>% pull(ctr_fix)
-  fxsd <- htmldata[['summary']] %>% filter(param == "sd") %>% pull(ctr_fix)
-  mx <- fxavg + 3 * fxsd
-  mn <- fxavg - 3 * fxsd
-  noncalcout3s <- htmldata[['tabel']] %>%
-    filter(EVAL == ".",
-           ENTRY > mx | ENTRY < mn)
-  if (nrow(noncalcout3s)> 0) {
-    cat("<h3>Niet weergegeven waarden buiten 3s</h3><p>",
-        file = htmlfile, append = TRUE)
-    cat(knitr::kable(noncalcout3s,
-                     format = "html"),
-        file = htmlfile, append = TRUE)
-  }
-
-
-  cat(paste0("\nEINDE"), file = logfile, append = TRUE)
+  pltly <- ELC_shewhart_plot(subdata = htmldata[["plot"]],
+                         interactive = TRUE,
+                         title = subtitle)
+  plot_widgets[[comb]][["fig"]] <- pltly
+  plot_widgets[[comb]][["smry"]] <- datatable(htmldata[['summary']])
+  plot_widgets[[comb]][["data"]] <- datatable(htmldata[['tabel']])
+  plot_widgets[[comb]][["out3s"]] <- datatable(htmldata[['out3s']])
 }
 
-#Afronden file en html tonen
-cat('\n</BODY></HTML>', file = htmlfile, append = TRUE)
+###############################################################################
+### CREATE HTML
+###############################################################################
+
+# Create placeholder widget
+placeholder <- htmlwidgets::createWidget("html", list(), package = "htmlwidgets")
+
+# Initialize lists to hold TOC and content
+toc_items <- list()
+content_blocks <- list()
+
+for (comb in names(plot_widgets)) {
+  analysis <- sub("---.*", "", comb)
+  qc       <- sub(".*?---(.*?)---.*", "\\1", comb)
+  comp     <- sub(".*---", "", comb)
+  section_id <- gsub("[^a-zA-Z0-9]", "_", comb)  # Safe ID for anchor tags
+
+  # Add to TOC
+  toc_items[[length(toc_items) + 1]] <- tags$li(
+    tags$a(href = paste0("#", section_id), paste(comp, "-", qc))
+  )
+
+  # Add content section
+  content_blocks[[length(content_blocks) + 1]] <- tags$div(
+    id = section_id,
+    tags$h2(paste0("Component: ", comp)),
+    tags$h3(paste0("QC: ", qc)),
+    plot_widgets[[comb]][["fig"]],
+    plot_widgets[[comb]][["smry"]],
+    plot_widgets[[comb]][["data"]],
+    plot_widgets[[comb]][["out3s"]]
+  )
+}
+
+# Wrap TOC
+toc_widget <- tags$ul(toc_items)
+
+# Assemble full layout
+layout <- tagList(
+  tags$div(
+    tags$head(tags$title("Self-contained Report")),
+    tags$body(
+      # Sidebar TOC
+      tags$div(
+        style = "position: fixed; top: 60px; left: 0; width: 220px; padding: 10px; background-color: #f9f9f9; border-right: 1px solid #ccc; height: 100%; overflow-y: auto;",
+        tags$h3("Table of Contents"),
+        toc_widget
+      ),
+      # Main content area
+      tags$div(
+        style = "margin-left: 240px; padding: 20px;",
+        tags$h1("Controlekaart Rapport"),
+        tags$h2("Leeswijzer"),
+        tags$p("De blauwe punten worden niet gebruikt bij de berekeningen. Overtredingen van regels worden in de figuur en tabel aangeduid."),
+        tags$ul(
+          tags$li("Punt telt niet mee: blauwe bol, eval = ."),
+          tags$li("Correct punt: groene bol, eval = ------"),
+          tags$li("R1: Buiten 3 sigma: rode bol, eval = R1"),
+          tags$li("R2a: 2 opeenvolgend buiten 2 sigma, zelfde kant: rode bol, eval = R2"),
+          tags$li("R3: 9 opeenvolgende buiten aan zelfde kant gemiddelde: gele bol, eval = R3"),
+          tags$li("R4: 6 opeenvolgende met toenemede of dalende trend: gele bol, eval = R4")
+        ),
+        content_blocks  # dynamically generated sections
+      )
+    )
+  )
+)
+
+# Combine and save
+output <- htmlwidgets::prependContent(placeholder, layout)
+htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
+
+
+### html tonena
 shell.exec(htmlfile)
 
 

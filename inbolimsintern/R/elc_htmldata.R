@@ -132,10 +132,20 @@ elc_htmldata <- function(plotdata,
                             ctr_fix = round(c(ctr_x, ctr_sd),digits = digits),
                             calculated_incl_outliers = round(c(chart_mean, chart_sd), digits = digits),
                             calculated_excl_outliers = round(c(chart_mean_clean, chart_sd_clean), digits = digits))
+
+  #waarden buiten 3s grenzen die mogelijks niet in grafiek staan
+  fxavg <- summarydata %>% filter(param == "gem") %>% pull(ctr_fix)
+  fxsd <- summarydata %>% filter(param == "sd") %>% pull(ctr_fix)
+  mx <- fxavg + 3 * fxsd
+  mn <- fxavg - 3 * fxsd
+  out3sdata <- NULL
+  try(out3sdata <- htmldata %>% filter(EVAL == ".", ENTRY > mx | ENTRY < mn))
+
   return(list(plot = subdata,
               borders = s_borders,
               summary = summarydata,
-              tabel = htmldata))
+              tabel = htmldata,
+              out3s = out3sdata))
 }
 
 
