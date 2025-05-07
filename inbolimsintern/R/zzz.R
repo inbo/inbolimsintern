@@ -5,8 +5,12 @@
   #if (class(creds)[1] != "try-error") {
   #
   #}
-  path <- "\\\\limsbgops.inbo.be\\Labware7\\LabWare-7\\Data\\R_SCRIPTS"
-  #path <- "D:\\LWL8DEV\\Data\\R_SCRIPTS"
-  try(copy_scripts_to_lims_path(path))
+  path_prd <- "\\\\limsbgops.inbo.be\\Labware7\\LabWare-7\\Data\\R_SCRIPTS"
+  path_dev <- "D:\\LWL8DEV\\Data\\R_SCRIPTS"
+  path_uat <- "D:\\LWL8UAT\\Data\\R_SCRIPTS"
+
+  dev <- try(copy_scripts_to_lims_path(path_dev))
+  if (all(!dev)) uat <- try(copy_scripts_to_lims_path(path_uat))
+  if (all(!uat)) prd <-  try(copy_scripts_to_lims_path(path_prd))
 }
 
