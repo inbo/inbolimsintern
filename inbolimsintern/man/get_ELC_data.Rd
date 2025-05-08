@@ -4,7 +4,7 @@
 \alias{get_ELC_data}
 \title{Verkrijg de ELC data}
 \usage{
-get_ELC_data(dbcon, sqlfile, keep = 30, productversions = NULL)
+get_ELC_data(dbcon, sqlfile, keep = 30, productversions = NULL, logfile = NULL)
 }
 \arguments{
 \item{dbcon}{dbconnection object (DBI)}
@@ -14,6 +14,8 @@ get_ELC_data(dbcon, sqlfile, keep = 30, productversions = NULL)
 \item{keep}{aantal batches te behouden voor de figuur}
 
 \item{productversions}{data.frame me een kolom PRODUCT en VERSIE om te bepalen welke limieten gebruikt moeten worden. IF NULL dan worden de maximale versies gebruikt voor elk product}
+
+\item{logfile}{indien niet NULL schrijf debugging info weg in logfile}
 }
 \value{
 dataset met alle te verwerken gegevens

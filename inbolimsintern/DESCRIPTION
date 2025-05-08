@@ -1,12 +1,12 @@
 Package: inbolimsintern
 Type: Package
-Title: FUNCTIONALITY EXTENSION OF THE INBO LIMS SYSTEM VIA R
-Version: 0.2.1.0
-Date: 2021-01-14
+Title: FUNCTIONALITY EXTENSION of the INBO LIMS SYSTEM via R
+Version: 0.2.2
+Date: 2025-05-08
 Author: Pieter Verschelde
 Maintainer: Pieter Verschelde <pieter.verschelde@inbo.be>
 Description: Some utilities that expand the Lims program in INBO. The routines are called by the lims program itself. The target audience for this package is the LIMS server and the LIMS administrators.
-License: MIT + file LICENSE
+License: MIT
 Depends: 
     R (>= 3.3.0)
 Imports:
@@ -24,11 +24,12 @@ Imports:
     tibble,
     purrr,
     readxl,
-    readr
+    readr,
+    plotly
 Suggests:
     knitr,
     kableExtra,
     rmarkdown,
     testthat (>= 2.1.0)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Encoding: UTF-8

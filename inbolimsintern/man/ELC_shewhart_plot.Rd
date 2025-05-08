@@ -8,7 +8,9 @@ ELC_shewhart_plot(
   subdata,
   borders = NULL,
   base_color = "lightblue3",
-  max_s_plot = 5
+  max_s_plot = 5,
+  interactive = FALSE,
+  title = NULL
 )
 }
 \arguments{
@@ -19,6 +21,8 @@ ELC_shewhart_plot(
 \item{base_color}{basiskleur in de grafieken}
 
 \item{max_s_plot}{Op hoeveel s moet de plot alles erbuiten niet meer tonen. Indien 0 of NA toon de hele plot}
+
+\item{interactive}{Moet de plot een interactief plotly object worden?}
 }
 \value{
 ggplot2 object
@@ -35,10 +39,13 @@ color = c(g,b,b,r,g,r,r,b,b,g,g,g,b,g,g),
 size = c(1,NA,NA,2,1,2,NA,NA,NA,1,1,1,NA,1,1),
 UNITS = "m",
 BATCH = LETTERS[1:15],
+ORDER = 1:15,
 eval = c(1,NA,NA,1,1,1,1,NA,NA,1,1,1,NA,1,1))
-borders <- data.frame(lim = -3:3, val = (-3:3)*10, color = c("red", "gold", "green4", "lightblue3", "green4", "gold", "red"))
+borders <- data.frame(lim = -3:3, val = (-3:3)*10,
+color = c("red", "gold", "green4", "lightblue3", "green4", "gold", "red"))
 ELC_shewhart_plot(subdata, borders, max_s_plot = 4)
 ELC_shewhart_plot(subdata, borders, max_s_plot = 0)
+ELC_shewhart_plot(subdata, borders, max_s_plot = 4, interactive = TRUE)
 }
 
 }

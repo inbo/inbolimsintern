@@ -4,7 +4,7 @@
 \alias{db_update_get_data}
 \title{Interpreteer data en zet om naar vorm van C_REQUESTED_DB_UPDATES}
 \usage{
-db_update_get_data(data, conn, remark_col = "opmerking_ZoetHab")
+db_update_get_data(data, conn)
 }
 \arguments{
 \item{data}{data ingelezen uit een csv die omgezet moet worden (1 rij per dataset want gebruikt via rowwise)}

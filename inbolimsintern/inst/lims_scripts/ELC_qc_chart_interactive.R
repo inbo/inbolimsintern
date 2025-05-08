@@ -10,14 +10,39 @@ library(DT)
 library(htmltools)
 library(htmlwidgets)
 
+save_report <- function(widget, filename = "output.html", libdir = "output_files") {
+  # Try to find pandoc
+  pandoc_found <- !is.null(rmarkdown::find_pandoc(dir = NULL)) &&
+    nzchar(Sys.which("pandoc"))
+
+  if (pandoc_found) {
+    message("✅ Pandoc found — generating self-contained HTML.")
+    htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE)
+  } else {
+    message("⚠️ Pandoc not found — falling back to non-self-contained HTML.")
+    htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
+    message("👉 Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
+  }
+}
+
+#PANDOC Path needs to be set for use with Rscript.exe
+
+#LW7PRD
+pandoc_dir <-  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools"
+#LW8DEV
+if (!dir.exists(pandoc_dir)) pandoc_dir <- "D:/R/RStudio/resources/app/bin/quarto/bin/tools"
+
+Sys.setenv(PATH = paste(pandoc_dir, Sys.getenv("PATH"), sep = .Platform$path.sep))
+Sys.setenv(RSTUDIO_PANDOC = pandoc_dir)
+
+
 ### Init Logfile
-
-
-### Read LIMS arguments
 
 call_id <- 0 #call_id <- 10016
 logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
+
+### Read LIMS arguments
 
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -180,11 +205,9 @@ layout <- tagList(
 )
 
 # Combine and save
-#PANDOC Path needs to be set for use with Rscript.exe
-Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools")
 output <- htmlwidgets::prependContent(placeholder, layout)
-htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
-
+#htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
+save_report(output, filename = htmlfile)
 
 ### html tonena
 shell.exec(htmlfile)
