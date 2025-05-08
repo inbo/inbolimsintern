@@ -28,7 +28,8 @@
 ELC_shewhart_plot <- function(subdata, borders = NULL,
                               base_color = "lightblue3",
                               max_s_plot = 5,
-                              interactive = FALSE) {
+                              interactive = FALSE,
+                              title = NULL) {
   colnames(subdata) <- toupper(colnames(subdata))
   if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE #tijdelijk-moet beter geimplementeerd worden'
 
@@ -36,6 +37,7 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     base_color <-  (subdata %>% filter(is.na(.data$EVAL) | .data$EVAL == FALSE) %>% pull(.data$COLOR))[1]
     if (is.na(base_color)) base_color <- "lightblue3" #wanneer alle data EVAL true hebben
   }
+  blue_palette <- colorRampPalette(c("darkblue", base_color))
 
   if (is.null(borders)) {
     borders <- data.frame(lim = -3:3,
@@ -46,11 +48,28 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                           color = c("red", "orange", "green4", "blue4",
                                          "green4", "orange", "red"))
   }
+  if (is.null(title)) {
+    title <- subdata$COMBI[1]
+  }
 
   # Add hover text to the data (only used in interactive plots)
   subdata$hover_text <- paste("Batch:", subdata$BATCH,
                               "<br>Value:", round(subdata$ENTRY, 2),
                               "<br>Ingelezen:", as.Date(subdata$ENTERED_ON))
+
+  subdata <- subdata %>%
+    arrange(BATCHNR, ORDER) %>%
+    group_by(BATCHNR) %>%
+    mutate(ORDER_WITHIN_BATCH = row_number()) %>%
+    ungroup()
+
+  max_order <- max(subdata$ORDER_WITHIN_BATCH)
+  subdata <- subdata %>%
+    mutate(COLOR = ifelse(ORDER_WITHIN_BATCH > 1,
+                          blue_palette(max_order)[ORDER_WITHIN_BATCH],
+                          COLOR))
+
+
   evaldata <- subdata %>%
     filter(!is.na(.data$EVAL) & (.data$EVAL != FALSE)) %>%
     arrange(.data$BATCHNR)
@@ -104,7 +123,7 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
 
   p <-
     ggplot(subdata, aes(x = .data$BATCHNR, y = .data$ENTRY)) +
-    geom_point(colour = subdata$COLOR) +
+    geom_point(colour = subdata$COLOR, aes(text = .data$hover_text)) +
     geom_path(data = evaldata, aes(x = .data$BATCHNR, y = .data$ENTRY), colour = base_color) +
     geom_point(data = evaldata, aes(x = .data$BATCHNR, y = .data$ENTRY, text = .data$hover_text),
                colour = evaldata$COLOR) +
@@ -116,8 +135,8 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                                      hjust = 1,
                                      vjust = 0.5,
                                      size = text_size)) +  # Dynamic text size
-    ylab(paste0("Waarde [", units, "]")) + xlab("") +
-    ggtitle(subdata$COMBI[1])
+    ylab(paste0("Waarde [", units, "]")) + xlab(title) #+labs(subtitle = title)
+
   if (zoom_y){
     p <- p + coord_cartesian(ylim = c(smin, smax))
   }
@@ -130,17 +149,20 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
 
   #make plot interactive
   # Convert to plotly and customize
-  p_interactive <- ggplotly(p, tooltip = "text") %>%
-    layout(
-      hoverlabel = list(bgcolor = "white"),
-      # Add more space at the bottom for rotated labels
-      margin = list(b = 120)
-    ) %>%
-    # Customize the modebar (the floating toolbar)
-    config(
-      modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian"),
-      displaylogo = FALSE
-    )
+
+  p_interactive <- ggplotly(p, tooltip = "text")
+
+  # p_interactive <- ggplotly(p, tooltip = "text") %>%
+  #   layout(
+  #     hoverlabel = list(bgcolor = "white"),
+  #     # Add more space at the bottom for rotated labels
+  #     margin = list(b = 120)
+  #   ) %>%
+  #   # Customize the modebar (the floating toolbar)
+  #   config(
+  #     modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian"),
+  #     displaylogo = FALSE
+  #   )
 
   return(p_interactive)
 }

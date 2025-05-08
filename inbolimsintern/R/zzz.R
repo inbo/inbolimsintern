@@ -9,8 +9,8 @@
   path_dev <- "D:\\LWL8DEV\\Data\\R_SCRIPTS"
   path_uat <- "D:\\LWL8UAT\\Data\\R_SCRIPTS"
 
-  dev <- try(copy_scripts_to_lims_path(path_dev))
-  if (all(!dev)) uat <- try(copy_scripts_to_lims_path(path_uat))
-  if (all(!uat)) prd <-  try(copy_scripts_to_lims_path(path_prd))
+  suppressWarnings(dev <- try(copy_scripts_to_lims_path(path_dev)))
+  if (all(!dev)) suppressWarnings(uat <- try(copy_scripts_to_lims_path(path_uat)))
+  if (all(!uat)) suppressWarnings(prd <-  try(copy_scripts_to_lims_path(path_prd)))
 }
 
