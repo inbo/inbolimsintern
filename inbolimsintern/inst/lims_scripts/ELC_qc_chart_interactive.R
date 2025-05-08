@@ -75,10 +75,10 @@ for (i in 1:nrow(combis)) {
   pltly <-  plotdata <- htmldata <- NULL
   comb <- combis$combi[i]
   print(comb)
-  subtitle = paste(paste0("analyse:   ", combis$ana[i]),
+  subtitle = paste("\n",paste0("analyse:   ", combis$ana[i]),
                 paste0("qc sample: ", combis$qc[i]),
                 paste0("component: ",combis$comp[i]),
-                sep = "\n") #via labs(subtitle = subtitle)
+                sep = " ")
   plotdata <- alldata %>% filter(combi == comb)
   cat("\nrijen plotdata: " , nrow(plotdata),file = logfile, append = TRUE)
   htmldata <- elc_htmldata(plotdata)
@@ -115,16 +115,32 @@ for (comb in names(plot_widgets)) {
     tags$a(href = paste0("#", section_id), paste(comp, "-", qc))
   )
 
-  # Add content section
-  content_blocks[[length(content_blocks) + 1]] <- tags$div(
-    id = section_id,
-    tags$h2(paste0("Component: ", comp)),
-    tags$h3(paste0("QC: ", qc)),
-    plot_widgets[[comb]][["fig"]],
-    plot_widgets[[comb]][["smry"]],
-    plot_widgets[[comb]][["data"]],
-    plot_widgets[[comb]][["out3s"]]
-  )
+  # Add content section with outliesrs
+  if (!is.null(plot_widgets[[comb]][["out3s"]])) {
+    content_blocks[[length(content_blocks) + 1]] <- tags$div(
+      id = section_id,
+      tags$h2(paste0("Component: ", comp)),
+      tags$h3(paste0("QC: ", qc)),
+      plot_widgets[[comb]][["fig"]],
+      tags$h4("Samenvattende gegevens"),
+      plot_widgets[[comb]][["smry"]],
+      tags$h4("Bijhorende tabel"),
+      plot_widgets[[comb]][["data"]],
+      plot_widgets[[comb]][["out3s"]]
+    )
+  } else {
+    content_blocks[[length(content_blocks) + 1]] <- tags$div(
+      id = section_id,
+      tags$h2(paste0("Component: ", comp)),
+      tags$h3(paste0("QC: ", qc)),
+      plot_widgets[[comb]][["fig"]],
+      tags$h4("Samenvattende gegevens"),
+      plot_widgets[[comb]][["smry"]],
+      tags$h4("Bijhorende tabel"),
+      plot_widgets[[comb]][["data"]]
+    )
+  }
+
 }
 
 # Wrap TOC
@@ -137,16 +153,18 @@ layout <- tagList(
     tags$body(
       # Sidebar TOC
       tags$div(
-        style = "position: fixed; top: 60px; left: 0; width: 220px; padding: 10px; background-color: #f9f9f9; border-right: 1px solid #ccc; height: 100%; overflow-y: auto;",
+        style = "position: fixed; top: 60px; left: 0; width: 280px; padding: 10px; background-color: #f9f9f9; border-right: 1px solid #ccc; height: 100%; overflow-y: auto;",
         tags$h3("Table of Contents"),
         toc_widget
       ),
       # Main content area
       tags$div(
-        style = "margin-left: 240px; padding: 20px;",
+        style = "margin-left: 280px; padding: 20px;",
         tags$h1("Controlekaart Rapport"),
         tags$h2("Leeswijzer"),
-        tags$p("De blauwe punten worden niet gebruikt bij de berekeningen. Overtredingen van regels worden in de figuur en tabel aangeduid."),
+        tags$p(paste0("De blauwe punten worden niet gebruikt bij de berekeningen.",
+                      " Hoe donkderder de blauwe bol, hoe eerder in de batch die voorkomt.",
+                      " Overtredingen van regels worden in de figuur en tabel aangeduid.")),
         tags$ul(
           tags$li("Punt telt niet mee: blauwe bol, eval = ."),
           tags$li("Correct punt: groene bol, eval = ------"),

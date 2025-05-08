@@ -114,8 +114,7 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                                      hjust = 1,
                                      vjust = 0.5,
                                      size = text_size)) +  # Dynamic text size
-    ylab(paste0("Waarde [", units, "]")) + xlab("") +
-    labs(subtitle = title)
+    ylab(paste0("Waarde [", units, "]")) + xlab(title) #+labs(subtitle = title)
 
   if (zoom_y){
     p <- p + coord_cartesian(ylim = c(smin, smax))
