@@ -180,6 +180,8 @@ layout <- tagList(
 )
 
 # Combine and save
+#PANDOC Path needs to be set for use with Rscript.exe
+Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools")
 output <- htmlwidgets::prependContent(placeholder, layout)
 htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
 
