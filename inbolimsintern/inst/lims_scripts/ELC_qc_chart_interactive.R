@@ -16,14 +16,20 @@ save_report <- function(widget, filename = "output.html", libdir = "output_files
     nzchar(Sys.which("pandoc"))
 
   if (pandoc_found) {
-    message("✅ Pandoc found — generating self-contained HTML.")
-    htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE)
+    message("Pandoc found — generating self-contained HTML.")
+    pandoc_ran <- try(htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE))
+    if (inherits(pandoc_ran, "try-error")){
+      message("Pandoc found but not runnable — falling back to non-self-contained HTML.")
+      htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
+      message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
+    }
   } else {
-    message("⚠️ Pandoc not found — falling back to non-self-contained HTML.")
+    message("Pandoc not found — falling back to non-self-contained HTML.")
     htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
-    message("👉 Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
+    message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
   }
 }
+
 
 #PANDOC Path needs to be set for use with Rscript.exe
 
