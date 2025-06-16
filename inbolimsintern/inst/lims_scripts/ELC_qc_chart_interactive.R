@@ -101,6 +101,10 @@ cat(combis$combi, sep = "\n", file = logfile, append = TRUE)
 ###############################################################################
 ### CREATE WIDGETS
 ###############################################################################
+
+print(rmarkdown::find_pandoc())
+print(paste("pandoc version: ", system("pandoc -v")))
+
 plot_widgets <- list()
 for (i in 1:nrow(combis)) {
   pltly <-  plotdata <- htmldata <- NULL

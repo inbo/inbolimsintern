@@ -5,6 +5,8 @@
 
 #credentials
 dbcredentials*.txt
+
+#werkvariabelen
 figure_html/
 index.html
 platereport.csv
@@ -16,6 +18,8 @@ _NOT_GIT_/
 lims_db_bevraging/output/
 .secrets
 LIMS_STATE/
+data_meetonzekerheid.csv
+overzicht_reportable_results.csv
 
 # Session Data files
 .RData
