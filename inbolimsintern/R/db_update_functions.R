@@ -45,16 +45,23 @@ db_update_worklist_table <- function(conn, data) {
 #' @return data.frame omzetbaar naar queries voor C_REQUESTED_DB_UPDATES
 #' @export
 #'
-db_update_get_data <- function(data, conn, remark_col = "opmerking_ZoetHab") {
+db_update_get_data <- function(data, conn) {
 
   ### >>> Data ophalen
 
   #Bestaan all benodigde kolommen?
    if (! all(c('LABSAMPLEID', 'FIELDSAMPLEID', 'VELD_TE_WIJZIGEN',
               'ORIGINELE_WAARDE', 'NIEUWE_WAARDE',
-              toupper(remark_col), 'LIMSANALYSISNAME') %in% names(data))) {
+              'LIMSANALYSISNAME') %in% names(data))) {
     stop("data heeft niet het correce formaat")
+   }
+  remark_col_nr <- which(substring(toupper(names(data)),1, 10) == "OPMERKING_")
+  if (length(remark_col_nr)) {
+    remark_col <- toupper(names(data)[remark_col_nr])
+  } else {
+    remark_col <- NULL
   }
+
   #Definieer de inhoud van de datarij
   text_id    <- as.character(data$LABSAMPLEID)
   extern_id  <- as.character(data$FIELDSAMPLEID)
@@ -62,7 +69,9 @@ db_update_get_data <- function(data, conn, remark_col = "opmerking_ZoetHab") {
   orig_value <- as.character(data$ORIGINELE_WAARDE)
   new_value  <- as.character(data$NIEUWE_WAARDE)
   requested_by  <- as.character(substring(remark_col, 11))
-  remarks       <- as.character(data[[toupper(remark_col)]])
+  remarks       <- ifelse(is.null(remark_col),
+                                  "",
+                                  as.character(data[[toupper(remark_col)]]))
   analysis  <- as.character(data$LIMSANALYSISNAME)
   analysis <- ifelse(is.null(analysis) | is.na(analysis) | analysis %in% c("NA", "-"),
                      NA,

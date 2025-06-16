@@ -1,16 +1,23 @@
 #ELC - Make QC chart html report
 
 ### R libraries
+
 library(inbolimsintern)
 library(DBI)
 library(tidyverse)
+library(plotly)
+library(DT)
+library(htmltools)
+library(htmlwidgets)
 
-### Logfile
+### Init Logfile
+
 logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
-### LIMS argumenten
-call_id <- 0 #call_id <- 1740 #call_id <- 3134 #call_id <- 5471 5597 6241 6605 8628
+### Read LIMS arguments
+
+call_id <- 0 #call_id <- 10016
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -32,8 +39,6 @@ try({
   #  }
 }, outFile = logfile)
 
-## Data
-
 htmlrootshort <- substring(htmlfile,
                            max(unlist(gregexpr("\\\\", htmlfile))) + 1,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
@@ -42,24 +47,21 @@ htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 writeLines(con = logfile, "\nhtml:\n")
 cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
 
-alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
+### Data import
 
+alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
 if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 
 writeLines(con = logfile, "\ncombis\n------\n")
 cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
 
-
-#solve unicode mu character
-# alldata <- alldata %>%
-#   mutate(combi = gsub('\xb5m', 'um', combi)) %>%
-#   mutate(combi = gsub('<b5>m', 'um', combi)) %>%
-#   mutate(combi = gsub('\xb5S', 'uS', combi)) %>%
-#   mutate(combi = gsub('<b5>S', 'uS', combi))
-
 combis <- unique(alldata$combi)
 writeLines(con = logfile, "\ncombis after elimination mu\n------\n")
 cat(combis, sep = "\n", file = logfile, append = TRUE)
+
+###############################################################################
+### CREATE HTML
+###############################################################################
 
 ## INIT html
 
@@ -82,7 +84,6 @@ cat("<H1>Leeswijzer</H1>",
 ## Loop through each sample_name, component combination
 #archive_data <- NULL #nodig indien de plotdata bewaard wordt in de LIMS tabel
 
-
 for (comb in combis) {
   print(comb)
   figpathshort <- paste0(htmlrootshort, "_", make.names(comb), ".png")
@@ -95,12 +96,21 @@ for (comb in combis) {
   htmldata <- elc_htmldata(plotdata)
   cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
 
+  cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
+
   p <- ELC_shewhart_plot(subdata = htmldata[["plot"]])
   ggsave(plot = p, filename = figpath, height = 4.5, width = 6, dpi = 200)
 
-  cat(paste0("\n<H2>", comb, "</H2>\n"), file = htmlfile, append = TRUE)
-  cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
-      file = htmlfile, append = TRUE)
+  #self-contained html
+  base64_image <- base64enc::dataURI(file = figpath, mime = "image/png")
+  cat(paste0('\n<img src="', base64_image, '">\n'), file = htmlfile, append = TRUE)
+  file.remove(figpath)
+
+
+  #oude manier (aparte bestanden)
+  #cat(paste0("\n<IMG SRC = \"", figpathshort, "\">\n"),
+  #    file = htmlfile, append = TRUE)
+
   cat(knitr::kable(htmldata[['summary']], format = "html", table.attr = "style='width:40%;'") %>%
         kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"),
       file = htmlfile, append = TRUE)
@@ -126,8 +136,10 @@ for (comb in combis) {
   cat(paste0("\nEINDE"), file = logfile, append = TRUE)
 }
 
-#Afronden file en html tonen
+### Afronden file
 cat('\n</BODY></HTML>', file = htmlfile, append = TRUE)
+
+### html tonena
 shell.exec(htmlfile)
 
 

@@ -33,6 +33,16 @@ elc_htmldata <- function(plotdata,
   certified <- mean(data$C_CERTIFIED_VALUE[data$VERSION == max(data$VERSION)])
   certified_sd <- mean(data$C_CERTIFIED_SD[data$VERSION == max(data$VERSION)])
 
+  product_version <- paste(sort(unique(data$VERSION)), collapse = ",")
+  product <- tryCatch(
+    {
+      paste(sort(unique(data$PRODUCT)), collapse = ",")
+    },
+    error = function(e) {
+      return(" ")
+    }
+  )
+
   ctr_x <- ifelse(is.null(expected_value),
                   mean(data$C_CTR_X[data$VERSION == max(data$VERSION)]),
                   expected_value)
@@ -115,16 +125,27 @@ elc_htmldata <- function(plotdata,
 
 
   #maak tabel met data die tussen plot en tabel komt
-  summarydata <- data.frame(param = c("gem", "sd"),
+  summarydata <- data.frame(product = c(product, product_version),
+                            param = c("gem", "sd"),
                             certified = round(c(certified, certified_sd),
                                               digits = digits),
                             ctr_fix = round(c(ctr_x, ctr_sd),digits = digits),
                             calculated_incl_outliers = round(c(chart_mean, chart_sd), digits = digits),
                             calculated_excl_outliers = round(c(chart_mean_clean, chart_sd_clean), digits = digits))
+
+  #waarden buiten 3s grenzen die mogelijks niet in grafiek staan
+  fxavg <- summarydata %>% filter(param == "gem") %>% pull(ctr_fix)
+  fxsd <- summarydata %>% filter(param == "sd") %>% pull(ctr_fix)
+  mx <- fxavg + 3 * fxsd
+  mn <- fxavg - 3 * fxsd
+  out3sdata <- NULL
+  try(out3sdata <- htmldata %>% filter(EVAL == ".", ENTRY > mx | ENTRY < mn))
+
   return(list(plot = subdata,
               borders = s_borders,
               summary = summarydata,
-              tabel = htmldata))
+              tabel = htmldata,
+              out3s = out3sdata))
 }
 
 

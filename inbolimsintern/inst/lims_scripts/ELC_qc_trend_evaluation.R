@@ -10,12 +10,14 @@ logfile <- logfile_start(prefix = "ELC_qc_eval")
 writeLines(con = logfile, paste0("ELC_Evaluatie\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id = 6661 7107  7108
+call_id <- 0 #call_id = 6661 7107  7108 9373
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
   params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 }, outFile = logfile)
+
+alpha <- 0.01
 
 writeLines(con = logfile, "params\n------\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
@@ -26,6 +28,7 @@ qcproduct <- params %>% filter(ARG_NAME == "PRODUCT") %>% pull(VALUE)
 lastyear <- params %>% filter(ARG_NAME == "LAST_YEAR") %>% pull(VALUE) %>% as.numeric()
 outputfile <- params %>% filter(ARG_NAME == "OUTPUT_FILE")  %>% pull(VALUE)
 ts <- paste0("{ts '", lastyear - 2, "-01-01 00:00:00'}")
+ts_end <- paste0("{ts '", lastyear + 1, "-01-01 00:00:00'}") #kleiner dan eerste dag volgende jaar
 
 query <- paste0("
 select s.PRODUCT, s.SAMPLE_NUMBER, s.TEXT_ID, s.SAMPLE_TYPE, s.SAMPLE_NAME , bo.BATCH, bo.ORDER_NUMBER
@@ -43,6 +46,7 @@ and r.ENTRY is not null and s.SAMPLE_TYPE is not null and s.SAMPLE_TYPE <> 'DUP'
 " and r.STATUS in ('E', 'M', 'A')",
 " and ps.C_CTR_ADD = 'T'",
 " and b.C_DATE_BATCHRUN > ", ts,
+" and b.C_DATE_BATCHRUN < ", ts_end,
 " and s.PRODUCT = '", qcproduct, "'",
 " order by r.ANALYSIS, r.NAME, s.SAMPLE_NAME, bo.BATCH, bo.ORDER_NUMBER")
 
@@ -72,18 +76,8 @@ select PRODUCT, ps.VERSION, ps.ANALYSIS, ps.COMPONENT, GRADE",
 " where PRODUCT = '", qcproduct,  "' and ps.VERSION = ", prodversion)
 
 productinfo <- dbGetQuery(conn, qry2)
-
-# test1 <- firstdata %>%
-#   group_by(BATCH, ANALYSIS) %>%
-#   summarise(DATE = min(C_DATE_BATCHRUN))
-# ggplot(data = test1, aes(x = DATE)) + facet_wrap(~ANALYSIS) + geom_histogram(binwidth = 30 * 24 * 3600)
-# firstdata %>% group_by(COMBI, period) %>% summarise(aantal = n()) %>%
-#   pivot_wider(names_from = period, values_from = aantal, values_fill = 0 ) %>% view()
-
 combis <- unique(firstdata$COMBI)
-
-#headerAna <- NA
-#headerComp <- NA
+combis <- "PHKCL_VOL_SP2000_V__pH.KCL.20__PH_BUFFER9_V_RF"
 
 overzicht <- NULL
 for (i in combis) {
@@ -109,15 +103,11 @@ for (i in combis) {
     x_huidig <- sd_huidig <- ref_x_huidig <- ref_sd_huidig <- qc_chart <- minlim <- maxlim <- is_pbl <- detlim <- NA
   }
 
-
-  fdata <- firstdata %>% filter(COMBI == comb) %>% arrange(C_DATE_BATCHRUN) %>% mutate(BATCHNR = 1:n(), VALUE = as.numeric(ENTRY))
+  fdata <- firstdata %>%
+    filter(COMBI == comb) %>%
+    arrange(C_DATE_BATCHRUN) %>%
+    mutate(BATCHNR = 1:n(), VALUE = as.numeric(ENTRY))
   table(fdata$period)
-  # ggplot(fdata, aes(x = C_DATE_BATCHRUN, y = VALUE)) +
-  #   geom_point() +
-  #   geom_smooth() +
-  #   geom_line(aes(y = C_CTR_X), color = "green4") +
-  #   geom_line(aes(y = C_CTR_X + 3 * C_CTR_SD), color = "red") +
-  #   geom_line(aes(y = C_CTR_X - 3 * C_CTR_SD), color = "red")
 
   periods <- fdata$period
   values1 <- fdata$VALUE[fdata$period == 1]
@@ -176,8 +166,8 @@ for (i in combis) {
     ucl_voorstel <-  x_voorstel + 2 * sd_voorstel
 
   } else {
-    x_voorstel <- ifelse(t_test_p < 0.01 & !is.na(t_test_p), m2, x_huidig)
-    sd_voorstel <- ifelse(var_test_p < 0.01 & !is.na(var_test_p), sd2, sd_huidig)
+    x_voorstel <- ifelse(t_test_p < alpha & !is.na(t_test_p), m2, x_huidig)
+    sd_voorstel <- ifelse(var_test_p < alpha & !is.na(var_test_p), sd2, sd_huidig)
     lcl_voorstel <- x_voorstel - 3 * sd_voorstel
     ucl_voorstel <-  x_voorstel + 3 * sd_voorstel
   }
@@ -205,7 +195,7 @@ for (i in combis) {
                    sd_set2 = sd2,
                    t_test_p = t_test_p,
                    var_test_p = var_test_p,
-                   significant = paste0(ifelse(t_test_p < 0.01, "*", "_"), ifelse(var_test_p < 0.01, "*", "_")),
+                   significant = paste0(ifelse(t_test_p < alpha, "*", "_"), ifelse(var_test_p < alpha, "*", "_")),
                    is_pbl = is_pbl,
                    qc_chart = qc_chart,
                    x_voorstel = x_voorstel,
