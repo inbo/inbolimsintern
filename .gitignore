@@ -4,8 +4,7 @@
 
 
 #credentials
-dbcredentials.txt
-
+dbcredentials*.txt
 
 #werkvariabelen
 figure_html/

@@ -7,6 +7,7 @@
 #' @param max_s_plot Op hoeveel s moet de plot alles erbuiten niet meer tonen. Indien 0 of NA toon de hele plot
 #' @param interactive Moet de plot een interactief plotly object worden?
 #' @import ggplot2
+#' @importFrom plotly ggplotly
 #' @return ggplot2 object
 #' @export
 #' @examples
@@ -18,8 +19,10 @@
 #' size = c(1,NA,NA,2,1,2,NA,NA,NA,1,1,1,NA,1,1),
 #' UNITS = "m",
 #' BATCH = LETTERS[1:15],
+#' ORDER = 1:15,
 #' eval = c(1,NA,NA,1,1,1,1,NA,NA,1,1,1,NA,1,1))
-#' borders <- data.frame(lim = -3:3, val = (-3:3)*10, color = c("red", "gold", "green4", "lightblue3", "green4", "gold", "red"))
+#' borders <- data.frame(lim = -3:3, val = (-3:3)*10,
+#' color = c("red", "gold", "green4", "lightblue3", "green4", "gold", "red"))
 #' ELC_shewhart_plot(subdata, borders, max_s_plot = 4)
 #' ELC_shewhart_plot(subdata, borders, max_s_plot = 0)
 #' ELC_shewhart_plot(subdata, borders, max_s_plot = 4, interactive = TRUE)
@@ -85,11 +88,27 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     }
   }
 
-  units =  max(subdata$UNITS)
-  units = gsub('\xb5m', 'um', units)
-  units = gsub('<b5>m', 'um', units)
-  units = gsub('\xb5S', 'uS', units)
-  units = gsub('<b5>S', 'uS', units)
+  units <- max(subdata$UNITS)
+  # Try multiple approaches to catch all possible encodings
+  units <- tryCatch({
+    gsub("\u00B5m", "um", units, fixed = FALSE)
+  }, error = function(e) {
+    tryCatch({
+      gsub("<b5>m", "um", units)
+    }, error = function(e) {
+      gsub("µm", "um", units, fixed = TRUE)
+    })
+  })
+  # Same for the S variant
+  units <- tryCatch({
+    gsub("\u00B5S", "uS", units, fixed = FALSE)
+  }, error = function(e) {
+    tryCatch({
+      gsub("<b5>S", "uS", units)
+    }, error = function(e) {
+      gsub("µS", "uS", units, fixed = TRUE)
+    })
+  })
 
   # Calculate text size based on number of points
   n_points <- nrow(evaldata)

@@ -32,9 +32,14 @@ save_report <- function(widget, filename = "output.html", libdir = "output_files
 
 
 #PANDOC Path needs to be set for use with Rscript.exe
+
+#LW7PRD
 pandoc_dir <-  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools"
+#LW8DEV
+if (!dir.exists(pandoc_dir)) pandoc_dir <- "D:/R/RStudio/resources/app/bin/quarto/bin/tools"
+
 Sys.setenv(PATH = paste(pandoc_dir, Sys.getenv("PATH"), sep = .Platform$path.sep))
-Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools")
+Sys.setenv(RSTUDIO_PANDOC = pandoc_dir)
 
 
 ### Init Logfile
@@ -99,7 +104,6 @@ cat(combis$combi, sep = "\n", file = logfile, append = TRUE)
 
 print(rmarkdown::find_pandoc())
 print(paste("pandoc version: ", system("pandoc -v")))
-
 
 plot_widgets <- list()
 for (i in 1:nrow(combis)) {

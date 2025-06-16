@@ -26,6 +26,14 @@ limsdb_connect <- function(server = "inbo-sql07-prd.inbo.be",
       if (!is.null(connectlist$db)) database <- connectlist$db
     }
   }
+
+  #diversify between dev, uat and prd (temporary workaround)
+  if (pwd == "devdev") {
+    server = "inbo-sql05-dev.inbodev.be"
+    database = "LWL8DEV"
+  }
+
+
   con <- try(DBI::dbConnect(odbc::odbc(),
                         Driver = "SQL Server",
                         Server = server,

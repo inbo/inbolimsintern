@@ -3,7 +3,6 @@
 #'
 #' Google spreadsheets R API
 #'
-#' @docType package
 #' @name inbolimsintern
 #' @importFrom dplyr %>%
 #' @importFrom purrr %||%

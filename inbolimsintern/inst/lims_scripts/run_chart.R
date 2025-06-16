@@ -8,6 +8,7 @@ writeLines(con = logfile, paste0("inbolimsintern versie: ", packageVersion("inbo
 
 #call_id <- 5243
 #call_id <- 857
+#call_id <- 9791 9794 #lims8dev
 call_id <- 0
 
 try({
@@ -16,16 +17,28 @@ try({
   params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
 }, outFile = logfile)
 
+
+project <- (params %>% filter(ARG_NAME == "PROJECT") %>% pull(VALUE))[1]
+print(project)
+
 charts <- params %>% filter(ARG_NAME == "CHART") %>% pull(VALUE)
 if (!length(charts)) {
   charts = " "
 }
-project <- (params %>% filter(ARG_NAME == "PROJECT") %>% pull(VALUE))[1]
-print(project)
-datetxt <- datetime_text()
-filebase <- paste0((params %>% filter(ARG_NAME == "PATH") %>%  pull(VALUE))[1],
-                   "\\run_chart_", project, "_", datetxt)
-htmlfile <- paste0(filebase, ".html")
+
+
+if (nrow(filter(params, ARG_NAME == "HTMLPATH")) > 0)
+{
+  htmlfile <- (params %>% filter(ARG_NAME == "HTMLPATH") %>% pull(.data$VALUE))[1]
+
+} else {
+  datetxt <- datetime_text()
+  filebase <- paste0((params %>% filter(ARG_NAME == "PATH") %>%  pull(VALUE))[1],
+                     "\\run_chart_", project, "_", datetxt)
+  htmlfile <- paste0(filebase, ".html")
+}
+
+#write html contents
 
 html <- "<HTML><HEAD></HEAD><BODY>"
 for (i in 1:length(charts)) {
