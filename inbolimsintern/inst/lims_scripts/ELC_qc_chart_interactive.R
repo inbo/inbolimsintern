@@ -10,14 +10,40 @@ library(DT)
 library(htmltools)
 library(htmlwidgets)
 
+save_report <- function(widget, filename = "output.html", libdir = "output_files") {
+  # Try to find pandoc
+  pandoc_found <- !is.null(rmarkdown::find_pandoc(dir = NULL)) &&
+    nzchar(Sys.which("pandoc"))
+
+  if (pandoc_found) {
+    message("Pandoc found — generating self-contained HTML.")
+    pandoc_ran <- try(htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE))
+    if (inherits(pandoc_ran, "try-error")){
+      message("Pandoc found but not runnable — falling back to non-self-contained HTML.")
+      htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
+      message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
+    }
+  } else {
+    message("Pandoc not found — falling back to non-self-contained HTML.")
+    htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
+    message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
+  }
+}
+
+
+#PANDOC Path needs to be set for use with Rscript.exe
+pandoc_dir <-  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools"
+Sys.setenv(PATH = paste(pandoc_dir, Sys.getenv("PATH"), sep = .Platform$path.sep))
+Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools")
+
+
 ### Init Logfile
-
-
-### Read LIMS arguments
 
 call_id <- 0 #call_id <- 10016
 logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
+
+### Read LIMS arguments
 
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -70,6 +96,11 @@ cat(combis$combi, sep = "\n", file = logfile, append = TRUE)
 ###############################################################################
 ### CREATE WIDGETS
 ###############################################################################
+
+print(rmarkdown::find_pandoc())
+print(paste("pandoc version: ", system("pandoc -v")))
+
+
 plot_widgets <- list()
 for (i in 1:nrow(combis)) {
   pltly <-  plotdata <- htmldata <- NULL
@@ -180,11 +211,9 @@ layout <- tagList(
 )
 
 # Combine and save
-#PANDOC Path needs to be set for use with Rscript.exe
-Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools")
 output <- htmlwidgets::prependContent(placeholder, layout)
-htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
-
+#htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
+save_report(output, filename = htmlfile)
 
 ### html tonena
 shell.exec(htmlfile)
