@@ -36,7 +36,8 @@ try({
 sqlcode <- paste0("select * from C_CTR_ARCHIVE where LABEL = '", kaartlabel, "'")
 cat("\n", sqlcode, "\n", file = logfile, append = TRUE)
 plotdata <- DBI::dbGetQuery(conn, sqlcode) %>%
-  mutate(EVAL = CHECK_RULES)
+  mutate(EVAL = CHECK_RULES) %>%
+  rename(ORDER = BATCH_POSITION) #ELC_Shewhart_Plot needs ORDER to sort on BatchNr,
 cat(nrow(plotdata),  " rijen\n", file = logfile, append = TRUE)
 }, outFile = logfile)
 
