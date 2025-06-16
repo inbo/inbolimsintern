@@ -1,5 +1,9 @@
 #Let op! Dit script werkt enkel in een 32-bit R omgeving indien 32-bit Access
 # wat het geval is op het INBO (10 mei 2019)
+#Nu zou dit geen probleem meer mogen vormen omdat iedereen office 365 heeft
+
+#!VOER ONDERSTAAND COMMANDO UIT (zonder het hekje vooraan als google je niet kan inloggen)
+#googlesheets4::gs4_auth()
 
 logfile <- "C:\\ZEBRA\\_Automatisation\\R_log.txt"
 sink(logfile)
@@ -21,9 +25,18 @@ sink()
 sink(logfile, append = TRUE)
 dfLabels <- googlesheets4::read_sheet(google_url, sheet = 1)
 colnames(dfLabels) <- toupper(colnames(dfLabels))
-dfLabels <- dfLabels %>% 
-  select( StaalType = STAALTYPE, YEAR, AID, SID, LB72X, LB72Y, DEPTH,
-          LabProjectCode = LABPROJECT, LabSampleCode = LABCODE)
+if ("LB72X" %in% colnames(dfLabels)) {
+  dfLabels <- dfLabels %>%
+    select( StaalType = STAALTYPE, YEAR, AID, SID, LB72X, LB72Y, DEPTH,
+            LabProjectCode = LABPROJECT, LabSampleCode = LABCODE)
+} else if ("WGS84LONG" %in% colnames(dfLabels)) {
+  dfLabels <- dfLabels %>%
+    select( StaalType = STAALTYPE, YEAR, AID, SID, WGS84LONG, WGS84LAT, DEPTH,
+            LabProjectCode = LABPROJECT, LabSampleCode = LABCODE)
+} else {
+  cat("Geen geldige coördinaten gevonden")
+}
+
 sink()
 
 sink(logfile, append = TRUE)
