@@ -1,0 +1,33 @@
+
+SELECT
+    s.PROJECT,
+    s.TEXT_ID,
+    s.SAMPLE_TYPE,
+	s.PRODUCT_GRADE,
+    s.STATUS AS SampleStatus,
+    bo.BATCH,
+    bo.ORDER_NUMBER as BATCH_POSITION,
+    CASE
+        WHEN bo.ORDER_NUMBER = MIN(bo.ORDER_NUMBER) OVER (PARTITION BY bo.BATCH, s.PRODUCT_GRADE)
+        THEN 1
+        ELSE 0
+    END AS FIRST_IN_BATCH,
+    r.STATUS AS ResultStatus,
+	r.ANALYSIS,
+	r.NAME,
+    CAST(r.[ENTRY] AS FLOAT) AS WAARDE,
+    r.FORMATTED_ENTRY,
+	r.ENTERED_ON,
+    YEAR(r.ENTERED_ON) AS JAAR
+FROM result r
+INNER JOIN sample s ON s.sample_number = r.sample_number
+INNER JOIN batch_objects bo ON bo.OBJECT_ID = r.TEST_NUMBER
+WHERE r.ENTERED_ON BETWEEN '2022-01-01' AND '2024-12-31'
+    AND r.analysis = 'C_N_ANAL_V'
+    AND r.name IN ('T.C.DS', 'T.N.DS')
+    AND s.SAMPLE_TYPE IS NOT NULL
+    AND s.sample_type <> 'DUP'
+ORDER BY
+   MIN(r.ENTERED_ON) OVER (PARTITION BY bo.BATCH, s.PRODUCT_GRADE),
+    bo.BATCH,
+    bo.ORDER_NUMBER
