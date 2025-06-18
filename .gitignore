@@ -13,6 +13,7 @@ platereport.csv
 QC_CHARTS.csv
 test_abi_ascii.txt
 tijdelijk/
+output/
 workdir/
 _NOT_GIT_/
 lims_db_bevraging/output/
