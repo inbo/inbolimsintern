@@ -11,7 +11,7 @@ logfile <- logfile_start(prefix = "CTR_SHOW")
 writeLines(con = logfile, paste0("Tonen archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 5366 5397 8375 8970
+call_id <- 0 #call_id <- 10195
 try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
@@ -83,12 +83,14 @@ for (comb in combis) {
 
   #add functionality for table x and s (preliminary°)
   cat(file = htmlfile, append = TRUE,
-      knitr::kable(subdata %>% filter(EVAL = TRUE) %>%
-                     summarise(CERTIF = max(C_CERTIFIED_VALUE),
+      knitr::kable(subdata %>%
+                     summarise(CERTIF = max(C_CERTIFIED_VALUE[.data$EVAL]),
                                XBAR = max(C_CTR_X),
                                SD = max(C_CTR_SD),
-                               AVG_DATA = round(mean(ENTRY, na.rm = TRUE),3),
-                               SD_DATA = round(sd(ENTRY, na.rm = TRUE),3)),
+                               AVG_DATA = round(mean(ENTRY[.data$EVAL], na.rm = TRUE),3),
+                               SD_DATA = round(sd(ENTRY[.data$EVAL], na.rm = TRUE),3),
+                               AVG_ALL = round(mean(ENTRY, na.rm = TRUE),3),
+                               SD_ALL = round(sd(ENTRY, na.rm = TRUE),3)),
                    format = "html", table.attr = "style='width:40%;'") %>%
         kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"))
 
@@ -105,7 +107,6 @@ for (comb in combis) {
       kableExtra::kable_styling(position = "left", bootstrap_options = "bordered"))
 
 }
-
 #Afronden file en html tonen
 cat('\n</BODY></HTML>', file = htmlfile, append = TRUE)
 shell.exec(htmlfile)
