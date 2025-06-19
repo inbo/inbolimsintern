@@ -161,6 +161,7 @@ for (comb in names(plot_widgets)) {
       plot_widgets[[comb]][["smry"]],
       tags$h4("Bijhorende tabel"),
       plot_widgets[[comb]][["data"]],
+      tags$h4("Buiten 3s limieten"),
       plot_widgets[[comb]][["out3s"]]
     )
   } else {
@@ -175,7 +176,6 @@ for (comb in names(plot_widgets)) {
       plot_widgets[[comb]][["data"]]
     )
   }
-
 }
 
 # Wrap TOC

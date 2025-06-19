@@ -9,19 +9,21 @@
 #' @param expected_sd indien NULL berekend uit de data, anders wordt deze gebruikt
 #' @param digits aantal digits te printen in de html
 #' @param check_rules moeten de grenzen berekend worden of zitten die al als kolom in de data
+#' @param reverse_table_order Moet de data van recent naar oud geschikt worden in de html tabel
 #'
 #' @return lijst met 4 datasets: plot, borders, summary en tabel
 #' @export
-elc_htmldata <- function(plotdata,
-                         colors = c("lightblue3", "green4", "orange", "red", "blue4"),
-                         base_size = 1.5,
-                         expected_value = NULL,
-                         expected_sd = NULL,
-                         digits = 5,
-                         check_rules = TRUE
-) {
+elc_htmldata <-
+  function(plotdata,
+           colors = c("lightblue3", "green4", "orange", "red", "blue4"),
+           base_size = 1.5,
+           expected_value = NULL,
+           expected_sd = NULL,
+           digits = 5,
+           check_rules = TRUE,
+           reverse_table_order = TRUE) {
   if (check_rules) {
-
+  #reserved for eventual later use
   }
 
   data <- plotdata %>%
@@ -140,6 +142,10 @@ elc_htmldata <- function(plotdata,
   mn <- fxavg - 3 * fxsd
   out3sdata <- NULL
   try(out3sdata <- htmldata %>% filter(EVAL == ".", ENTRY > mx | ENTRY < mn))
+
+  if (reverse_table_order) {
+    htmldata <- htmldata[nrow(htmldata):1,,drop = FALSE]
+  }
 
   return(list(plot = subdata,
               borders = s_borders,
