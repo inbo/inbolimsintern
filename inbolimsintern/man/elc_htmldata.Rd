@@ -11,7 +11,8 @@ elc_htmldata(
   expected_value = NULL,
   expected_sd = NULL,
   digits = 5,
-  check_rules = TRUE
+  check_rules = TRUE,
+  reverse_table_order = TRUE
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ elc_htmldata(
 \item{digits}{aantal digits te printen in de html}
 
 \item{check_rules}{moeten de grenzen berekend worden of zitten die al als kolom in de data}
+
+\item{reverse_table_order}{Moet de data van recent naar oud geschikt worden in de html tabel}
 }
 \value{
 lijst met 4 datasets: plot, borders, summary en tabel
