@@ -10,25 +10,6 @@ library(DT)
 library(htmltools)
 library(htmlwidgets)
 
-save_report <- function(widget, filename = "output.html", libdir = "output_files") {
-  # Try to find pandoc
-  pandoc_found <- !is.null(rmarkdown::find_pandoc(dir = NULL)) &&
-    nzchar(Sys.which("pandoc"))
-
-  if (pandoc_found) {
-    message("Pandoc found — generating self-contained HTML.")
-    pandoc_ran <- try(htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE))
-    if (inherits(pandoc_ran, "try-error")){
-      message("Pandoc found but not runnable — falling back to non-self-contained HTML.")
-      htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
-      message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
-    }
-  } else {
-    message("Pandoc not found — falling back to non-self-contained HTML.")
-    htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
-    message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
-  }
-}
 
 
 #PANDOC Path needs to be set for use with Rscript.exe
@@ -54,9 +35,11 @@ try({
   args <- inbolimsintern::prepare_session(call_id)
   conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
   params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
+  status <- inbolimsintern::read_db_log(conn, args["call_id"])
 }, outFile = logfile)
 
 writeLines(con = logfile, "\n\nparams:\n")
+write_db_log(conn, call_id, "P", "Started")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
@@ -82,7 +65,10 @@ cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, appe
 ### Data import
 
 alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
-if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
+if (nrow(alldata) == 0) {
+  cat("\nGEEN DATA\n", file = logfile, append = TRUE)
+  write_db_log(conn, call_id, "E", "Geen data")
+}
 
 writeLines(con = logfile, "\ncombis\n------\n")
 cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
@@ -217,7 +203,8 @@ layout <- tagList(
 # Combine and save
 output <- htmlwidgets::prependContent(placeholder, layout)
 #htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
-save_report(output, filename = htmlfile)
+save_report_widget(output, filename = htmlfile)
+write_db_log(conn, call_id, "C", "QC charts saved in html")
 
 ### html tonena
 shell.exec(htmlfile)
