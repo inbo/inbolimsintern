@@ -1,45 +1,30 @@
+##################################
 #ELC - Make QC chart html report
+##################################
 
-### R libraries
-
-library(inbolimsintern)
-library(DBI)
+# library(DBI)
+# library(tidyverse)
+# library(plotly)
+# library(DT)
+# library(htmltools)
+# library(htmlwidgets)
 library(tidyverse)
-library(plotly)
-library(DT)
-library(htmltools)
-library(htmlwidgets)
+library(inbolimsintern)
+call_id <- commandArgs(trailingOnly = TRUE)[4]
+#call_id <- 9896
+setup <- session_setup(call_id = call_id)
+list2env(setup, envir = .GlobalEnv)
 
+#################
 
+writeLines(con = logfile,
+           paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ",
+                  packageVersion("inbolimsintern")))
+status <- inbolimsintern::read_db_log(conn, args["call_id"])
 
-#PANDOC Path needs to be set for use with Rscript.exe
-
-#LW7PRD
-pandoc_dir <-  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools"
-#LW8DEV
-if (!dir.exists(pandoc_dir)) pandoc_dir <- "D:/R/RStudio/resources/app/bin/quarto/bin/tools"
-
-Sys.setenv(PATH = paste(pandoc_dir, Sys.getenv("PATH"), sep = .Platform$path.sep))
-Sys.setenv(RSTUDIO_PANDOC = pandoc_dir)
-
-
-### Init Logfile
-
-call_id <- 0 #call_id <- 10016
-logfile <- logfile_start(prefix = "ELC_Shewhart")
-writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
-
-### Read LIMS arguments
-
-try({
-  args <- inbolimsintern::prepare_session(call_id)
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-  status <- inbolimsintern::read_db_log(conn, args["call_id"])
-}, outFile = logfile)
+write_db_log(conn, call_id, "P", "Started")
 
 writeLines(con = logfile, "\n\nparams:\n")
-write_db_log(conn, call_id, "P", "Started")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 try({
@@ -65,15 +50,19 @@ cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, appe
 ### Data import
 
 alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
+
 if (nrow(alldata) == 0) {
   cat("\nGEEN DATA\n", file = logfile, append = TRUE)
   write_db_log(conn, call_id, "E", "Geen data")
+} else {
+  combis <- data.frame(combi = unique(alldata$combi))
+  write_db_log(conn, call_id, "P", paste0("records: ", nrow(alldata), " | combis:", nrow(combis)))
 }
 
 writeLines(con = logfile, "\ncombis\n------\n")
 cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
 
-combis <- data.frame(combi = unique(alldata$combi))
+
 combis <- cbind(combis, separate(combis,
                                  col = "combi",
                                  into = c("ana", "qc", "comp"),

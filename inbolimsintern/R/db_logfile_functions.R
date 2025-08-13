@@ -11,13 +11,15 @@
 logfile_start <- function(path = "<auto>", prefix = "", suffix = "") {
   defaultdir <- "\\\\LimsBGOPS.inbo.be\\Labware7\\LabWare-7\\Data\\logs"
   if (path == "<auto>") {
+    path <- defaultdir
     check <- dir.exists(defaultdir)
-    if (check) {
-      path <- defaultdir
-    } else {
-      path <- getwd()
-    }
+  } else {
+    check <- dir.exists(path)
   }
+  if (!check) {
+      path <- getwd()
+  }
+
   time <- substring(Sys.time(),1,19)
   time <- gsub("-", "", time)
   time <- gsub(":", "", time)

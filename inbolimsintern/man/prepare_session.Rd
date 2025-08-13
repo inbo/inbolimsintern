@@ -2,36 +2,106 @@
 % Please edit documentation in R/db_prepare_session.R
 \name{prepare_session}
 \alias{prepare_session}
-\title{Ophalen commando-argumenten}
+\title{Prepare Database Session Arguments}
 \usage{
 prepare_session(
   call_id = NULL,
   args = commandArgs(),
-  min_args = 5,
+  min_args = 5L,
   first_arg = min_args,
   cred_file = "dbcredentials.txt"
 )
 }
 \arguments{
-\item{call_id}{het nummer waarmee de argumenten uit de lims databank kunnen opgehaald worden (tabel C_RSCRIPT_ARGS)}
+\item{call_id}{Integer. The call identification number used to retrieve
+script-specific arguments from the LIMS database (table C_RSCRIPT_ARGS).
+Required when running in test/interactive mode.}
 
-\item{args}{de argumenten die meekomen bij het oproepen van het script (meestal commandArgs)}
+\item{args}{Character vector. Command line arguments passed to the script.
+Default is `commandArgs()`. In production, these typically include the
+R script path, data source, username, password, and call_id.}
 
-\item{min_args}{minimum aantal argumenten om te checken of het een effectieve call is, of een test (bij een test werk je interactief en zijn er veel minder commandoargumenten)}
+\item{min_args}{Integer. Minimum number of arguments required to determine
+if this is a production call vs. interactive testing. Default is 5.}
 
-\item{first_arg}{de positie van het eerste argument (dit zal 5 of 6 zijn afh. van je R). Het eerste argument is het opgeroepen R script, daarna volgt normaal gezien de data-source, de user-name, het passwoord, en de call_id, die de extra benodigde argumenten voor het script ophaalt in de lims databank (tabel C_RSCRIPT_ARGS)}
+\item{first_arg}{Integer. Position of the first meaningful argument in the
+args vector. This accounts for R's internal arguments. Default equals min_args.}
 
-\item{cred_file}{de bestandsnaam (al dan niet met padverwijzing) van het 3 regels lange tekstbestand, waar de data-source, user-name en paswoord kunnen opgehaald worden in die volgorde. Dit is enkel relevant in testmodus, dus als er minder dan min_args argumenten zijn}
+\item{cred_file}{Character string. Path to the credentials file containing
+database connection information. Used only in interactive/test mode.
+The file should contain three lines: data source, username, and password.
+Default is "dbcredentials.txt".}
 }
 \value{
-character vector waarbij de elementen met de naam dsn (data-source), uid (gebruikersnaam), pwd (paswoord), call_id (call identificatie) teruggegeven worden
+Named character vector with the following elements:
+  \describe{
+    \item{dsn}{Data source name for database connection}
+    \item{uid}{Username for database authentication}
+    \item{pwd}{Password for database authentication}
+    \item{call_id}{Call identification number for retrieving script arguments}
+  }
 }
 \description{
-Ophalen commando-argumenten
+Extracts and prepares database connection arguments for R scripts, supporting
+both production mode (with command line arguments) and interactive testing mode
+(with credential files). The function automatically detects the execution context
+and retrieves the appropriate database credentials and script parameters.
 }
+\details{
+The function operates in two modes:
+
+**Production Mode**: When `length(args) >= min_args`, arguments are extracted
+from the command line. The expected argument structure is:
+- args[1:min_args]: R internal arguments
+- args[min_args + 1]: Data source name
+- args[min_args + 2]: Username
+- args[min_args + 3]: Password
+- args[min_args + 4]: Call ID
+
+**Interactive/Test Mode**: When `length(args) < min_args`, credentials are
+read from the specified credential file, and call_id must be provided as
+a parameter.
+}
+\section{Error Handling}{
+
+- Stops execution if credential file cannot be read in test mode
+- Stops execution if call_id is NULL in test mode
+- Provides informative error messages in Dutch for LIMS integration
+}
+
 \examples{
 \dontrun{
-cred_file <- system.file("extdata", "dbcredentials.txt", package = "inbolimsintern")
-args <- prepare_session(call_id = 5, cred_file = cred_file)
+# Interactive/test mode - reading from credential file
+cred_file <- system.file("extdata", "dbcredentials_example.txt", package = "inbolimsintern")
+args_test <- prepare_session(call_id = 5, cred_file = cred_file)
+print(args_test)
+# Returns: c(dsn = "LIMS_DB", uid = "user123", pwd = "pass456", call_id = "5")
+
+# Production mode - using command line arguments
+# Simulating command line args: c("Rscript", "script.R", "LIMS_DB", "user", "pass", "5")
+mock_args <- c("R_EXEC_LOC", "--no-echo", "--no-restore", "--file=testje.r", "--args", "LIMS_DB", "user123", "pass456", "5")
+args_prod <- prepare_session(args = mock_args)
+print(args_prod)
+# Returns: c(dsn = "LIMS_DB", uid = "username", pwd = "password", call_id = "5")
+
+# Custom minimum arguments
+args_custom <- prepare_session(
+  call_id = 15,
+  min_args = 6,
+  cred_file = "my_credentials.txt"
+)
+
+# Using the returned arguments for database connection
+session_args <- prepare_session(call_id = 5, cred_file = cred_file)
+# Later in your script:
+# con <- DBI::dbConnect(odbc::odbc(),
+#                       dsn = session_args["dsn"],
+#                       uid = session_args["uid"],
+#                       pwd = session_args["pwd"])
 }
+
+}
+\seealso{
+\code{\link[inbolimsintern]{read_db_credentials}} for credential file reading
+\code{\link[base]{commandArgs}} for command line argument handling
 }

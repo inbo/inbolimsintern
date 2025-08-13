@@ -2,35 +2,93 @@
 % Please edit documentation in R/db_limsdb_connect.R
 \name{limsdb_connect}
 \alias{limsdb_connect}
-\title{Title}
+\title{Connect to LIMS Database with Multi-Environment Fallback}
 \usage{
-limsdb_connect(
-  server = "inbo-sql07-prd.inbo.be",
-  database = "D0015_00_Lims",
-  uid,
-  pwd,
-  connectlist = NULL
-)
+limsdb_connect(env, uid, pwd, connectlist = NULL)
 }
 \arguments{
-\item{server}{name of the LIMS server}
+\item{env}{Character string. Name of the LIMS database odbc object.
+Default is "D0015_00_Lims" (main production database LW7).
+Other possibilities are LWL8DEV, LWL8UAT and LWL8PRD}
 
-\item{database}{name of the LIMS database}
+\item{uid}{Character string. Application username that has write permissions
+on the database. This should be an application service account, not a
+personal username.}
 
-\item{uid}{application username (that as writing rights on the db, so this is not you username)}
+\item{pwd}{Character string. Password for the application username.}
 
-\item{pwd}{applciation username password}
-
-\item{connectlist}{list containing dsn (server name), uid (user id) and pwd (password). Optionally it can also contain db. It overrides the values of the other arguments}
+\item{connectlist}{Named list containing connection parameters that override
+individual arguments. Must contain "dsn" (server name), "uid" (user ID),
+and "pwd" (password). Optionally can contain "db" (database name).
+When provided, this takes precedence over individual parameters.}
 }
 \value{
-db connection
+A DBI connection object if successful, or a character string
+  "No database connection could be established" if all connection attempts fail.
 }
 \description{
-Title
+Attempts to establish a connection to the LIMS database by trying multiple
+environments in sequence (LW7, Production, UAT, Development) until a
+successful connection is made. This provides automatic failover capability
+when working across different LIMS environments.
 }
+\details{
+The function attempts connections in the following order:
+1. **LW7 Environment**: inbo-sql07-prd.inbo.be / LWL8PRD
+2. **Production Environment**: inbo-sql07-prd.inbo.be / D0015_10_Lims
+3. **UAT Environment**: inbo-sql06-uat.inbouat.be / LWL8UAT
+4. **Development Environment**: inbo-sql05-dev.inbodev.be / LWL8DEV
+
+The function returns immediately upon the first successful connection.
+If all environments fail, it returns an error message string.
+
+**Note**: The `server` and `database` parameters are only used when
+`connectlist` is NULL. When `connectlist` is provided, its values
+take precedence and the multi-environment fallback is bypassed.
+}
+\section{Security Considerations}{
+
+- Use application service accounts, not personal credentials
+- Consider storing credentials securely rather than hardcoding
+- Ensure proper database permissions for the application account
+}
+
 \examples{
 \dontrun{
-lims_db_connect(uid = "me", pwd = "123456") #should not work
+# Basic connection with fallback across environments
+con <- limsdb_connect(env = "lims_env", uid = "lims_app_user", pwd = "secure_password")
+
+# Check if connection was successful
+if (is.character(con)) {
+  stop("Failed to connect to any LIMS environment: ", con)
 }
+
+# Using connection list (typical with prepare_session function)
+creds <- list(
+  dsn = "inbo-sql07-prd.inbo.be",
+  uid = "app_user",
+  pwd = "password",
+  db = "D0015_00_Lims"
+)
+con <- limsdb_connect(connectlist = creds)
+
+# Integration with prepare_session
+session_args <- prepare_session(call_id = 5, cred_file = "credentials.txt")
+con <- limsdb_connect(connectlist = session_args)
+
+# Always close connection when done
+if (!is.character(con)) {
+  DBI::dbDisconnect(con)
+}
+
+# Example of invalid credentials (should fail gracefully)
+con_fail <- limsdb_connect(env = "lims_env", uid = "invalid_user", pwd = "wrong_password")
+print(con_fail)  # Should print error message
+}
+
+}
+\seealso{
+\code{\link[DBI]{dbConnect}} for database connection details
+\code{\link[odbc]{odbc}} for ODBC driver information
+\code{\link{prepare_session}} for credential preparation
 }

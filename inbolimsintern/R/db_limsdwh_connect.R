@@ -6,7 +6,7 @@
 #' @param use_rodbc use the rodbc library (or the DBI when FALSE)
 #' @param uidpwd not used for the moment
 #'
-#' @return
+#' @return odbc database connection object
 #' @export
 limsdwh_connect <- function(deployment = "prd", use_rodbc = FALSE, uidpwd = "") {
   if (deployment != "uat") {
