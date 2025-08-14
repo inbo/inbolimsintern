@@ -19,7 +19,7 @@ elc_htest <- function(data, valuecol = "WAARDE", grpcol = "grp", label = "" ) {
   sdv1 <- sd(  x1, na.rm = TRUE); sdv2 = sd(  x2, na.rm = TRUE)
 
   ttest <- try(t.test(x1, x2))
-  if (class(ttest) != "try-error") {
+  if (!inherits(ttest, "try-error")) {
     tval_t <- ttest$statistic
     pval_t <- ttest$p.value
     lcl_t <-  ttest$conf.int[1]
@@ -31,7 +31,7 @@ elc_htest <- function(data, valuecol = "WAARDE", grpcol = "grp", label = "" ) {
     ucl_t <-  NA
   }
   vtest <- try(var.test(x1, x2))
-  if (class(vtest) != "try-error") {
+  if (!inherits(vtest, "try-error")) {
     fval_v <- vtest$statistic
     pval_v <- vtest$p.value
     lcl_v <-  vtest$conf.int[1]

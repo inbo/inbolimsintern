@@ -90,5 +90,4 @@ print(con_fail)  # Should print error message
 \seealso{
 \code{\link[DBI]{dbConnect}} for database connection details
 \code{\link[odbc]{odbc}} for ODBC driver information
-\code{\link{prepare_session}} for credential preparation
 }

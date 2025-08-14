@@ -10,7 +10,8 @@ ELC_shewhart_plot(
   base_color = "lightblue3",
   max_s_plot = 5,
   interactive = FALSE,
-  title = NULL
+  title = NULL,
+  fig_height = 600
 )
 }
 \arguments{
@@ -23,6 +24,10 @@ ELC_shewhart_plot(
 \item{max_s_plot}{Op hoeveel s moet de plot alles erbuiten niet meer tonen. Indien 0 of NA toon de hele plot}
 
 \item{interactive}{Moet de plot een interactief plotly object worden?}
+
+\item{title}{De titel die aan de plot toegevoegd wordt}
+
+\item{fig_height}{De hoogte van de figuren in pixels}
 }
 \value{
 ggplot2 object

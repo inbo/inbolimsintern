@@ -14,7 +14,7 @@
 #'
 #' @return Invisibly returns NULL. The function is called for its side effects
 #'   of creating HTML files and printing status messages.
-#'
+#' @importFrom htmlwidgets saveWidget
 #' @details
 #' The function first checks if pandoc is available and executable. If found,
 #' it attempts to create a self-contained HTML file where all dependencies
@@ -59,15 +59,15 @@ save_report_widget <- function(widget, filename = "output.html", libdir = "outpu
     nzchar(Sys.which("pandoc"))
 
   if (pandoc_found) {
-    message("Pandoc found — generating self-contained HTML.")
+    message("Pandoc found -> generating self-contained HTML.")
     pandoc_ran <- try(htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE))
     if (inherits(pandoc_ran, "try-error")){
-      message("Pandoc found but not runnable — falling back to non-self-contained HTML.")
+      message("Pandoc found but not runnable -> falling back to non-self-contained HTML.")
       htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
       message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
     }
   } else {
-    message("Pandoc not found — falling back to non-self-contained HTML.")
+    message("Pandoc not found -> falling back to non-self-contained HTML.")
     htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
     message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
   }

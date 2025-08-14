@@ -10,8 +10,6 @@ db_update_get_data(data, conn)
 \item{data}{data ingelezen uit een csv die omgezet moet worden (1 rij per dataset want gebruikt via rowwise)}
 
 \item{conn}{DBI connectie naar LIMS databank}
-
-\item{remark_col}{de kolomnaam waar de update opmerkingen in staan}
 }
 \value{
 data.frame omzetbaar naar queries voor C_REQUESTED_DB_UPDATES

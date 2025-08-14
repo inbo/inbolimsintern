@@ -6,6 +6,8 @@
 #' @param base_color basiskleur in de grafieken
 #' @param max_s_plot Op hoeveel s moet de plot alles erbuiten niet meer tonen. Indien 0 of NA toon de hele plot
 #' @param interactive Moet de plot een interactief plotly object worden?
+#' @param title De titel die aan de plot toegevoegd wordt
+#' @param fig_height De hoogte van de figuren in pixels
 #' @import ggplot2
 #' @importFrom plotly ggplotly
 #' @return ggplot2 object
@@ -32,7 +34,8 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                               base_color = "lightblue3",
                               max_s_plot = 5,
                               interactive = FALSE,
-                              title = NULL) {
+                              title = NULL,
+                              fig_height = 600) {
   colnames(subdata) <- toupper(colnames(subdata))
   if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE #tijdelijk-moet beter geimplementeerd worden'
 
@@ -88,27 +91,10 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     }
   }
 
-  units <- max(subdata$UNITS)
-  # Try multiple approaches to catch all possible encodings
-  units <- tryCatch({
-    gsub("\u00B5m", "um", units, fixed = FALSE)
-  }, error = function(e) {
-    tryCatch({
-      gsub("<b5>m", "um", units)
-    }, error = function(e) {
-      gsub("µm", "um", units, fixed = TRUE)
-    })
-  })
-  # Same for the S variant
-  units <- tryCatch({
-    gsub("\u00B5S", "uS", units, fixed = FALSE)
-  }, error = function(e) {
-    tryCatch({
-      gsub("<b5>S", "uS", units)
-    }, error = function(e) {
-      gsub("µS", "uS", units, fixed = TRUE)
-    })
-  })
+  # replace micro symbols
+  pattern <- "(\\u00B5|<b5>)(m|S)" #group pattern (mu and S or M)
+  replacement <- "u\\2" # backreference '\\2' re-insert character second group
+  units <- gsub(pattern, replacement, max(subdata$UNITS))
 
   # Calculate text size based on number of points
   n_points <- nrow(evaldata)
@@ -118,54 +104,57 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     # Linear scaling: size decreases as points increase
     max(8 * (50/n_points), 4)  # minimum size of 4
   }
+  suppressWarnings({
+    p <-
+      ggplot(
+        data = subdata,
+        mapping = aes(x = .data$BATCHNR,
+                      y = .data$ENTRY)) +
+      geom_point(
+        mapping = aes(text = .data$hover_text),
+        colour  = subdata$COLOR) +
+      geom_path(
+        data = evaldata,
+        mapping = aes(x = .data$BATCHNR,
+                      y = .data$ENTRY),
+        colour  = base_color) +
+      geom_point(
+        data = evaldata,
+        mapping = aes(x = .data$BATCHNR,
+                      y = .data$ENTRY,
+                      text = .data$hover_text),
+        colour = evaldata$COLOR) +
+      geom_hline(
+        data = borders,
+        mapping = aes(yintercept = .data$val),
+        colour = borders$color) +
+      scale_x_continuous(
+        breaks = evaldata$BATCHNR,
+        labels = evaldata$BATCH) +
+      theme(
+        axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5,
+                                   size = text_size)) +  # Dynamic text size
+      ylab(paste0("Waarde [", units, "]")) +
+      xlab(title) #+labs(subtitle = title)
 
-  p <-
-    ggplot(subdata, aes(x = .data$BATCHNR, y = .data$ENTRY)) +
-    geom_point(colour = subdata$COLOR, aes(text = .data$hover_text)) +
-    geom_path(data = evaldata, aes(x = .data$BATCHNR, y = .data$ENTRY), colour = base_color) +
-    geom_point(data = evaldata, aes(x = .data$BATCHNR, y = .data$ENTRY, text = .data$hover_text),
-               colour = evaldata$COLOR) +
-    geom_hline(data = borders, aes(yintercept = .data$val),
-               colour = borders$color) +
-    scale_x_continuous(breaks = evaldata$BATCHNR,
-                       labels = evaldata$BATCH) +
-    theme(axis.text.x = element_text(angle = 90,
-                                     hjust = 1,
-                                     vjust = 0.5,
-                                     size = text_size)) +  # Dynamic text size
-    ylab(paste0("Waarde [", units, "]")) + xlab(title) #+labs(subtitle = title)
+    if (zoom_y){
+      p <- p + coord_cartesian(ylim = c(smin, smax))
+    }
+    checkdata <<- ggplot_build(p) #om debugging mogelijk te maken
+  })
 
-  if (zoom_y){
-    p <- p + coord_cartesian(ylim = c(smin, smax))
-  }
-  checkdata <<- ggplot_build(p) #om debugging mogelijk te maken
-
-  #if interactive, return current plot
+  #return static or interactive plot
   if (!interactive) {
     return(p)
+  } else {
+    p_interactive <- ggplotly(p,
+                              tooltip = "text",
+                              fig_height = fig_height)
+    return(p_interactive)
   }
-
-  #make plot interactive
-  # Convert to plotly and customize
-
-  p_interactive <- ggplotly(p, tooltip = "text")
-
-  # p_interactive <- ggplotly(p, tooltip = "text") %>%
-  #   layout(
-  #     hoverlabel = list(bgcolor = "white"),
-  #     # Add more space at the bottom for rotated labels
-  #     margin = list(b = 120)
-  #   ) %>%
-  #   # Customize the modebar (the floating toolbar)
-  #   config(
-  #     modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian"),
-  #     displaylogo = FALSE
-  #   )
-
-  return(p_interactive)
 }
 
-
-##############################################################
 
 

@@ -6,26 +6,27 @@ Date: 2025-05-08
 Author: Pieter Verschelde
 Maintainer: Pieter Verschelde <pieter.verschelde@inbo.be>
 Description: Some utilities that expand the Lims program in INBO. The routines are called by the lims program itself. The target audience for this package is the LIMS server and the LIMS administrators.
-License: MIT
+License: MIT + file LICENSE
 Depends: 
     R (>= 3.3.0)
 Imports:
-    stats,
-    utils,
-    dplyr,
-    magrittr,
     DBI,
-    odbc,
+    dplyr,
     ggplot2,
-    zoo,
-    xtable,
-    tidyr,
-    rlang,
-    tibble,
+    htmlwidgets,
+    odbc,
+    plotly,
     purrr,
-    readxl,
     readr,
-    plotly
+    readxl,
+    rlang,
+    RODBC,
+    stats,
+    stringi,
+    tidyr,
+    utils,
+    xtable,
+    zoo
 Suggests:
     knitr,
     kableExtra,

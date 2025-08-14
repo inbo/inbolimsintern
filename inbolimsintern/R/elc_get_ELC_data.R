@@ -5,6 +5,7 @@
 #' @param keep aantal batches te behouden voor de figuur
 #' @param productversions data.frame me een kolom PRODUCT en VERSIE om te bepalen welke limieten gebruikt moeten worden. IF NULL dan worden de maximale versies gebruikt voor elk product
 #'@param logfile indien niet NULL schrijf debugging info weg in logfile
+#'@importFrom stringi stri_encode
 #' @return dataset met alle te verwerken gegevens
 #' @export
 get_ELC_data <- function(dbcon, sqlfile, keep = 30, productversions = NULL, logfile = NULL) {

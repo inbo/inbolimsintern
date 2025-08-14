@@ -5,7 +5,7 @@
 #' @param deployment 'uat' for test server 'prd' for production server
 #' @param use_rodbc use the rodbc library (or the DBI when FALSE)
 #' @param uidpwd not used for the moment
-#'
+#' @importFrom RODBC odbcDriverConnect
 #' @return odbc database connection object
 #' @export
 limsdwh_connect <- function(deployment = "prd", use_rodbc = FALSE, uidpwd = "") {

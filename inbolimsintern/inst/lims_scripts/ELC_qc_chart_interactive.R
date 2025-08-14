@@ -2,30 +2,48 @@
 #ELC - Make QC chart html report
 ##################################
 
-# library(DBI)
-# library(tidyverse)
-# library(plotly)
-# library(DT)
-# library(htmltools)
-# library(htmlwidgets)
+cat("entering R\n", file = "debug.log", append = FALSE)
+
+#// setup environment
+#
 library(tidyverse)
 library(inbolimsintern)
-call_id <- commandArgs(trailingOnly = TRUE)[4]
+library(htmltools) #must be loaded for tags functionality
+fig_height <- 600
+
+cat("libraries loaded\n", file = "debug.log", append = TRUE)
+cat(paste(commandArgs(), collapse = "\n"), file = "debug.log", append = TRUE)
+
+args <- commandArgs(trailingOnly = TRUE)
+call_id <- args[4]
+cat(paste("\ncall_id:", call_id, "\n"), file = "debug.log", append = TRUE)
+
 #call_id <- 9896
-setup <- session_setup(call_id = call_id)
+print(paste("call_id =", call_id))
+Sys.sleep(5)
+setup <- try(r_session_setup(call_id))
+print(setup)
+if (inherits(setup, "try-error")) {
+  print("probleem bij setup script")
+}
+
+print("session prepared")
+Sys.sleep(10)
+
 list2env(setup, envir = .GlobalEnv)
 
-#################
+print("listing environment")
+cat(paste("session setup complete", call_id, "\n"), file = "debug.log", append = FALSE)
 
 writeLines(con = logfile,
            paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ",
                   packageVersion("inbolimsintern")))
-status <- inbolimsintern::read_db_log(conn, args["call_id"])
-
+status <- inbolimsintern::read_db_log(conn, call_id)
 write_db_log(conn, call_id, "P", "Started")
-
 writeLines(con = logfile, "\n\nparams:\n")
 cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
+
+#// retrieve arguments
 
 try({
   maxpoints_orig <- 30 #indien max_points bestaat wordt dit overschreven door die waarde
@@ -47,41 +65,42 @@ htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 writeLines(con = logfile, "\nhtml:\n")
 cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
 
-### Data import
+#// Import data
 
+write_db_log(conn, call_id, "P", "Importing data from db")
 alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
 
 if (nrow(alldata) == 0) {
   cat("\nGEEN DATA\n", file = logfile, append = TRUE)
   write_db_log(conn, call_id, "E", "Geen data")
+  writeLines(con = logfile, "ERROR: geen data\n")
+  stop("Geen data")
 } else {
   combis <- data.frame(combi = unique(alldata$combi))
-  write_db_log(conn, call_id, "P", paste0("records: ", nrow(alldata), " | combis:", nrow(combis)))
+  write_db_log(conn, call_id, "P", paste0("records: ", nrow(alldata), " | combis: ", nrow(combis)))
 }
 
 writeLines(con = logfile, "\ncombis\n------\n")
 cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
 
-
-combis <- cbind(combis, separate(combis,
-                                 col = "combi",
-                                 into = c("ana", "qc", "comp"),
-                                 sep = "---")) %>%
+combis <- combis %>%
+  bind_cols(separate(combis,
+                     col = "combi",
+                     into = c("ana", "qc", "comp"),
+                     sep = "---")) %>%
   arrange(ana, comp, qc)
 
 writeLines(con = logfile, "\ncombis after elimination mu\n------\n")
 cat(combis$combi, sep = "\n", file = logfile, append = TRUE)
 
 
-###############################################################################
-### CREATE WIDGETS
-###############################################################################
-
-print(rmarkdown::find_pandoc())
-print(paste("pandoc version: ", system("pandoc -v")))
+#// CREATE WIDGETS
+#==================
 
 plot_widgets <- list()
+write_db_log(conn, call_id, "P", "creating widgets")
 for (i in 1:nrow(combis)) {
+  #prepare data
   pltly <-  plotdata <- htmldata <- NULL
   comb <- combis$combi[i]
   print(comb)
@@ -94,18 +113,23 @@ for (i in 1:nrow(combis)) {
   htmldata <- elc_htmldata(plotdata)
   cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
 
+  #create plot
   pltly <- ELC_shewhart_plot(subdata = htmldata[["plot"]],
                          interactive = TRUE,
-                         title = subtitle)
+                         title = subtitle,
+                         fig_height = fig_height)
   plot_widgets[[comb]][["fig"]] <- pltly
-  plot_widgets[[comb]][["smry"]] <- datatable(htmldata[['summary']])
-  plot_widgets[[comb]][["data"]] <- datatable(htmldata[['tabel']])
-  plot_widgets[[comb]][["out3s"]] <- datatable(htmldata[['out3s']])
-}
 
-###############################################################################
-### CREATE HTML
-###############################################################################
+  #create tables
+  plot_widgets[[comb]][["smry"]] <- DT::datatable(htmldata[['summary']])
+  plot_widgets[[comb]][["data"]] <- DT::datatable(htmldata[['tabel']])
+  plot_widgets[[comb]][["out3s"]] <- DT::datatable(htmldata[['out3s']])
+}
+write_db_log(conn, call_id, "P", "widgets created, creating html")
+
+
+#// CREATE HTML
+#=================
 
 # Create placeholder widget
 placeholder <- htmlwidgets::createWidget("html", list(), package = "htmlwidgets")
@@ -114,6 +138,7 @@ placeholder <- htmlwidgets::createWidget("html", list(), package = "htmlwidgets"
 toc_items <- list()
 content_blocks <- list()
 
+# loop through widgets and add them to content blocks
 for (comb in names(plot_widgets)) {
   analysis <- sub("---.*", "", comb)
   qc       <- sub(".*?---(.*?)---.*", "\\1", comb)
@@ -125,13 +150,17 @@ for (comb in names(plot_widgets)) {
     tags$a(href = paste0("#", section_id), paste(comp, "-", qc))
   )
 
-  # Add content section with outliesrs
+  # add content blocks
+    #case: with outlier block
   if (!is.null(plot_widgets[[comb]][["out3s"]])) {
     content_blocks[[length(content_blocks) + 1]] <- tags$div(
       id = section_id,
       tags$h2(paste0("Component: ", comp)),
       tags$h3(paste0("QC: ", qc)),
-      plot_widgets[[comb]][["fig"]],
+      tags$div(
+        style = paste0("height: ",fig_height, "px;"),
+        plot_widgets[[comb]][["fig"]]
+      ),
       tags$h4("Samenvattende gegevens"),
       plot_widgets[[comb]][["smry"]],
       tags$h4("Bijhorende tabel"),
@@ -139,12 +168,16 @@ for (comb in names(plot_widgets)) {
       tags$h4("Buiten 3s limieten"),
       plot_widgets[[comb]][["out3s"]]
     )
-  } else {
+    #case: without outlier block
+  } else { #content section without outliers
     content_blocks[[length(content_blocks) + 1]] <- tags$div(
       id = section_id,
       tags$h2(paste0("Component: ", comp)),
       tags$h3(paste0("QC: ", qc)),
-      plot_widgets[[comb]][["fig"]],
+      tags$div(
+        style = paste0("height: ",fig_height, "px;"),
+        plot_widgets[[comb]][["fig"]]
+      ),
       tags$h4("Samenvattende gegevens"),
       plot_widgets[[comb]][["smry"]],
       tags$h4("Bijhorende tabel"),
@@ -188,6 +221,7 @@ layout <- tagList(
     )
   )
 )
+write_db_log(conn, call_id, "P", "widgets saved in content blocks")
 
 # Combine and save
 output <- htmlwidgets::prependContent(placeholder, layout)
@@ -195,7 +229,7 @@ output <- htmlwidgets::prependContent(placeholder, layout)
 save_report_widget(output, filename = htmlfile)
 write_db_log(conn, call_id, "C", "QC charts saved in html")
 
-### html tonena
+### html tonen
 shell.exec(htmlfile)
 
 

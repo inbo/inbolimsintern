@@ -40,7 +40,6 @@ db_update_worklist_table <- function(conn, data) {
 #'
 #' @param data data ingelezen uit een csv die omgezet moet worden (1 rij per dataset want gebruikt via rowwise)
 #' @param conn DBI connectie naar LIMS databank
-#' @param remark_col de kolomnaam waar de update opmerkingen in staan
 #'
 #' @return data.frame omzetbaar naar queries voor C_REQUESTED_DB_UPDATES
 #' @export
