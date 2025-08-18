@@ -4,7 +4,15 @@
 \alias{write_db_log}
 \title{Write a Log Entry to the Database}
 \usage{
-write_db_log(conn, call_id, status, message = "")
+write_db_log(
+  conn,
+  call_id,
+  status,
+  message = "",
+  extra = "",
+  user = "",
+  print = T
+)
 }
 \arguments{
 \item{conn}{A DBI database connection object.}
@@ -22,6 +30,12 @@ a consistent set of codes, for example:
 
 \item{message}{An optional character string providing additional details or an
 error message. Defaults to an empty string.}
+
+\item{extra}{Extra information that is printed (solely on the console) after the message}
+
+\item{user}{optional the user name from whom this log is created}
+
+\item{print}{If TRUE also a message is printed on the console}
 }
 \value{
 Invisibly returns the number of rows affected by the insert statement

@@ -151,7 +151,7 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
   } else {
     p_interactive <- ggplotly(p,
                               tooltip = "text",
-                              fig_height = fig_height)
+                              height = fig_height)
     return(p_interactive)
   }
 }

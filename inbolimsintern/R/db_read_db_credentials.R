@@ -3,7 +3,7 @@
 #' Lees de credentials in voor de database vanuit een bestand. De eerste regel bevat de data source, de tweede regel de username, en de derde regel het passwoord
 #' @param file bestandsnaam waaruit de credentials geschreven worden
 #'
-#' @return list with 3 elements, the data source, user-id and paswoord of the LIMS Main DB
+#' @return list with at least 4 elements, the host, the data source, user-id and paswoord of the LIMS Main DB
 #' @export
 #'
 #' @examples
@@ -11,7 +11,8 @@
 read_db_credentials <- function(file = "dbcredentials.txt")
 {
   creds <- readLines(file)
-  list(dsn = creds[1],
-       uid = creds[2],
-       pwd = creds[3])
+  list(host = creds[1],
+       dsn  = creds[2],
+       uid  = creds[3],
+       pwd  = creds[4])
 }

@@ -15,6 +15,9 @@
 #'   }
 #' @param message An optional character string providing additional details or an
 #'   error message. Defaults to an empty string.
+#' @param extra Extra information that is printed (solely on the console) after the message
+#' @param print If TRUE also a message is printed on the console
+#' @param user optional the user name from whom this log is created
 #'
 #' @returns Invisibly returns the number of rows affected by the insert statement
 #'   (typically 1 on success). The return value is invisible to prevent it
@@ -37,17 +40,24 @@
 #' # Log a failure
 #' write_db_log(conn, call_id, "FAIL", "Error in data aggregation step.")
 #' }
-write_db_log <- function(conn, call_id, status, message = "") {
-  sql <- "INSERT INTO C_RSCRIPT_LOG (call_id, status, timestamp, log_message) VALUES (?, ?, ?, ?);"
+write_db_log <- function(conn,
+                         call_id,
+                         status,
+                         message = "",
+                         extra = "",
+                         user = "",
+                         print = T) {
+  sql <- "INSERT INTO C_RSCRIPT_LOG (call_id, status, timestamp, log_message, lims_user) VALUES (?, ?, ?, ?, ?);"
 
   # Execute the query, passing the values as parameters.
   # The function is wrapped in invisible() so it doesn't print the
   # number of affected rows (1) to the console upon success.
+  if (print) message(message, extra)
   invisible(
     DBI::dbExecute(
       conn,
       sql,
-      params = list(call_id, status, Sys.time(), message)
+      params = list(call_id, status, Sys.time(), message, user)
     )
   )
 }

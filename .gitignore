@@ -5,6 +5,7 @@
 
 #credentials
 dbcredentials*.txt
+.Renviron*
 
 #werkvariabelen
 figure_html/

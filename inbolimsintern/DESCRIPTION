@@ -10,6 +10,7 @@ License: MIT + file LICENSE
 Depends: 
     R (>= 3.3.0)
 Imports:
+    base64enc,
     DBI,
     dplyr,
     ggplot2,

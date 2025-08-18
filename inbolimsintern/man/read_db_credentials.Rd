@@ -10,7 +10,7 @@ read_db_credentials(file = "dbcredentials.txt")
 \item{file}{bestandsnaam waaruit de credentials geschreven worden}
 }
 \value{
-list with 3 elements, the data source, user-id and paswoord of the LIMS Main DB
+list with at least 4 elements, the host, the data source, user-id and paswoord of the LIMS Main DB
 }
 \description{
 Lees de credentials in voor de database vanuit een bestand. De eerste regel bevat de data source, de tweede regel de username, en de derde regel het passwoord

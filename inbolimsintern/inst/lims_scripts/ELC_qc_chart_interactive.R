@@ -2,116 +2,111 @@
 #ELC - Make QC chart html report
 ##################################
 
-cat("entering R\n", file = "debug.log", append = FALSE)
-
 #// setup environment
-#
+##=====================
+tlogfile <- "D:\\PIETER\\qc.log"
+cat("QC charts", as.character(Sys.time()), "\n", file = tlogfile, append = TRUE)
 library(tidyverse)
 library(inbolimsintern)
 library(htmltools) #must be loaded for tags functionality
 fig_height <- 600
 
-cat("libraries loaded\n", file = "debug.log", append = TRUE)
-cat(paste(commandArgs(), collapse = "\n"), file = "debug.log", append = TRUE)
+cat("libraries loaded", "\n", file = tlogfile, append = TRUE )
 
 args <- commandArgs(trailingOnly = TRUE)
-call_id <- args[4]
-cat(paste("\ncall_id:", call_id, "\n"), file = "debug.log", append = TRUE)
+#args <- c("LWL8DEV", "9896", "TEST_INT")
 
-#call_id <- 9896
-print(paste("call_id =", call_id))
-Sys.sleep(5)
-setup <- try(r_session_setup(call_id))
-print(setup)
+cat(args, "\n", file = tlogfile, append = TRUE )
+
+username <- args[3]
+call_id <- args[2]
+odbc <- args[1]
+
+message("call_id = ", call_id)
+setup <- try(r_session_setup(call_id, odbc))
 if (inherits(setup, "try-error")) {
-  print("probleem bij setup script")
+  cat("probleem bij setup script\n", file = tlogfile, append = TRUE)
+  stop("probleem bij setup script")
 }
 
-print("session prepared")
-Sys.sleep(10)
 
-list2env(setup, envir = .GlobalEnv)
+message("session prepared")
+invisible(list2env(setup, envir = .GlobalEnv))
 
-print("listing environment")
-cat(paste("session setup complete", call_id, "\n"), file = "debug.log", append = FALSE)
+cat(conn@info$db.version, "\n",  file = tlogfile, append = TRUE)
 
-writeLines(con = logfile,
-           paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ",
-                  packageVersion("inbolimsintern")))
+
 status <- inbolimsintern::read_db_log(conn, call_id)
-write_db_log(conn, call_id, "P", "Started")
-writeLines(con = logfile, "\n\nparams:\n")
-cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
+write_db_log(conn, call_id, "P", "Started ELC_qc_chart_interactive")
+
+cat("start retrieving arguments", file = tlogfile, append = TRUE)
 
 #// retrieve arguments
+##=====================
 
-try({
+e <- try({
   maxpoints_orig <- 30 #indien max_points bestaat wordt dit overschreven door die waarde
-  sqlfile  <- try(filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
-  htmlfile <- try(filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
-  maxpoints <- try(filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% as.integer())
+  sqlfile  <- try(dplyr::filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
+  htmlfile <- try(dplyr::filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
+  maxpoints <- try(dplyr::filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% as.integer())
   if (inherits(maxpoints, "try-error") | !length(maxpoints)) maxpoints <- maxpoints_orig
-  # archive_label <- try(filter(params, ARG_NAME == "ARCHIVE_LABEL") %>% pull(VALUE))
-  #  if (class(archive_label == 'try-error')) {
-  #    archive_label <- NULL
-  #  }
-}, outFile = logfile)
+})
+if (inherits(e, "try-error")) {
+  write_db_log(conn, call_id, "E", e)
+  stop(e)
+}
 
 htmlrootshort <- substring(htmlfile,
                            max(unlist(gregexpr("\\\\", htmlfile))) + 1,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 
-writeLines(con = logfile, "\nhtml:\n")
-cat(paste(htmlrootshort, htmlpath, sep = "\n"), sep = "\n", file = logfile, append = TRUE)
+cat("start importing data", file = tlogfile, append = TRUE)
 
 #// Import data
+##================
 
-write_db_log(conn, call_id, "P", "Importing data from db")
-alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints, logfile = logfile)
+write_db_log(conn, call_id, "P", "start import data from db",
+             extra = " (can take a while)")
+e <-
+  try(
+    alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
+  )
 
-if (nrow(alldata) == 0) {
-  cat("\nGEEN DATA\n", file = logfile, append = TRUE)
-  write_db_log(conn, call_id, "E", "Geen data")
-  writeLines(con = logfile, "ERROR: geen data\n")
-  stop("Geen data")
-} else {
-  combis <- data.frame(combi = unique(alldata$combi))
-  write_db_log(conn, call_id, "P", paste0("records: ", nrow(alldata), " | combis: ", nrow(combis)))
+if (inherits(e, "try-error")) {
+  write_db_log(conn, call_id, "E", e)
+  stop(e)
 }
 
-writeLines(con = logfile, "\ncombis\n------\n")
-cat(unique(alldata$combi), sep = "\n", file = logfile, append = TRUE)
+combis <- alldata %>%
+  dplyr::select(combi) %>%
+  dplyr::distinct()
 
+message(paste(combis %>% dplyr::pull(combi), collapse = "\n"))
 combis <- combis %>%
-  bind_cols(separate(combis,
+  bind_cols(tidyr::separate(combis,
                      col = "combi",
                      into = c("ana", "qc", "comp"),
                      sep = "---")) %>%
   arrange(ana, comp, qc)
-
-writeLines(con = logfile, "\ncombis after elimination mu\n------\n")
-cat(combis$combi, sep = "\n", file = logfile, append = TRUE)
-
 
 #// CREATE WIDGETS
 #==================
 
 plot_widgets <- list()
 write_db_log(conn, call_id, "P", "creating widgets")
+
 for (i in 1:nrow(combis)) {
   #prepare data
   pltly <-  plotdata <- htmldata <- NULL
   comb <- combis$combi[i]
-  print(comb)
   subtitle = paste("\n",paste0("analyse:   ", combis$ana[i]),
                 paste0("qc sample: ", combis$qc[i]),
                 paste0("component: ",combis$comp[i]),
                 sep = " ")
-  plotdata <- alldata %>% filter(combi == comb)
-  cat("\nrijen plotdata: " , nrow(plotdata),file = logfile, append = TRUE)
+  plotdata <- alldata %>% dplyr::filter(combi == comb)
   htmldata <- elc_htmldata(plotdata)
-  cat("\nrijen htmldata: ", nrow(htmldata), file = logfile, append = TRUE)
+  message(comb, ": ", "records: " , nrow(plotdata))
 
   #create plot
   pltly <- ELC_shewhart_plot(subdata = htmldata[["plot"]],
@@ -152,7 +147,7 @@ for (comb in names(plot_widgets)) {
 
   # add content blocks
     #case: with outlier block
-  if (!is.null(plot_widgets[[comb]][["out3s"]])) {
+  if (nrow(plot_widgets[[comb]][["out3s"]]$x$data) > 0) {
     content_blocks[[length(content_blocks) + 1]] <- tags$div(
       id = section_id,
       tags$h2(paste0("Component: ", comp)),
@@ -224,9 +219,18 @@ layout <- tagList(
 write_db_log(conn, call_id, "P", "widgets saved in content blocks")
 
 # Combine and save
-output <- htmlwidgets::prependContent(placeholder, layout)
-#htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
-save_report_widget(output, filename = htmlfile)
+e <- try(output <- htmlwidgets::prependContent(placeholder, layout))
+if (inherits(e, "try-error")) {
+  write_db_log(conn, call_id, "E", e)
+  stop(e)
+}
+
+e <- try(save_report_widget(output, filename = htmlfile))
+if (inherits(e, "try-error")) {
+  write_db_log(conn, call_id, "E", e)
+  stop(e)
+}
+
 write_db_log(conn, call_id, "C", "QC charts saved in html")
 
 ### html tonen

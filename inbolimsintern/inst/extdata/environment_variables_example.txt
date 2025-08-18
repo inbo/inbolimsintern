@@ -1,0 +1,34 @@
+# ===================================================
+# DATABASE CONNECTION SETTINGS
+#
+# Instructions:
+# 1. Rename this file to ".Renviron"
+# 2. Place it in the R user's home directory on the server,
+#    or in the specific project directory where the scripts run.
+# 3. Fill in the correct credentials for each environment.
+# 4. Maybe obfuscate the .Renviron file to .Renviron.enc (using pkg function)
+# ===================================================
+
+# --- Development Environment ---
+DB_HOST_DEV="your_dev_server_address"
+DB_USER_DEV="your_dev_username"
+DB_PASS_DEV="your_dev_password"
+DB_DSRC_DEV="your_dev_odbc_data_source"
+
+# --- User Acceptance Testing (UAT) Environment ---
+DB_HOST_UAT="your_uat_server_address"
+DB_USER_UAT="your_uat_username"
+DB_PASS_UAT="your_uat_password"
+DB_DSRC_UAT="your_uat_odbc_data_source"
+
+# --- Production Environment ---
+DB_HOST_PRD="your_production_server_address"
+DB_USER_PRD="your_production_username"
+DB_PASS_PRD="your_production_password"
+DB_DSRC_PRD="your_production_odbc_data_source"
+
+# --- Labware 7 Environment ---
+DB_HOST_LW7="your_production_server_address"
+DB_USER_LW7="your_production_username"
+DB_PASS_LW7="your_production_password"
+DB_DSRC_LW7="your_production_odbc_data_source"

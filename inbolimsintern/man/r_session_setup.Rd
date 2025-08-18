@@ -6,14 +6,17 @@
 \usage{
 r_session_setup(
   call_id,
+  odbc,
   args = commandArgs(trailingOnly = TRUE),
   cred_file = "dbcredentials.txt"
 )
 }
 \arguments{
-\item{call_id}{The unique identifier for the script call, passed via command line.}
+\item{call_id}{The unique identifier for the script call, passed via command line as commandArgs()[2]}
 
-\item{args}{defaults to commandArgs(), but user can specify a custom character vector of arguments}
+\item{odbc}{The odbc that is given as commandArgs()[1] to define environment}
+
+\item{args}{defaults to commandArgs(trailingOnly = TRUE), but user can specify a custom character vector of arguments. The first 4 arguments must be dbodbc, dbuid, dbpwd and call_id, optionally the fifth should be user}
 
 \item{cred_file}{Path to the credentials file containing
 database connection information. Used only in interactive/test mode.
@@ -27,7 +30,6 @@ A list containing essential objects for the script:
   \itemize{
     \item \code{conn}: The DBI database connection object.
     \item \code{params}: A list of parameters read from the database.
-    \item \code{logfile}: The full path to the initialized log file.
   }
 }
 \description{
