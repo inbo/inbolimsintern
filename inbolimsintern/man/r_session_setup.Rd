@@ -8,7 +8,8 @@ r_session_setup(
   call_id,
   odbc,
   args = commandArgs(trailingOnly = TRUE),
-  cred_file = "dbcredentials.txt"
+  cred_file = "dbcredentials.txt",
+  logfile = "lims_rsession.log"
 )
 }
 \arguments{

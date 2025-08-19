@@ -8,6 +8,7 @@
 #' @param odbc The odbc that is given as commandArgs()[1] to define environment
 #' @param args defaults to commandArgs(trailingOnly = TRUE), but user can specify a custom character vector of arguments. The first 4 arguments must be dbodbc, dbuid, dbpwd and call_id, optionally the fifth should be user
 #' @param cred_file Path to the credentials file containing
+#' @param logfile logfile to write to, because this routine is ran before the databae connection is established and the logs can be saved there
 #'   database connection information. Used only in interactive/test mode.
 #'   The file should contain at least three lines containing
 #'   and just one column containing: data source, username, and password

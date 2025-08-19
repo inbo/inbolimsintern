@@ -20,10 +20,12 @@ copy_and_update_scripts <- function(target_path) {
     return(FALSE)
   }
 
-  package_script_files <- list.files(package_script_dir, pattern = "\\.R$", full.names = TRUE)
+  package_script_files <- list.files(package_script_dir, pattern = "^[^_].*\\.R$", full.names = FALSE)
   if (length(package_script_files) == 0) {
     # This is not an error, just means there's nothing to sync.
     return(TRUE)
+  } else {
+    package_script_files <- file.path(package_script_dir, package_script_files)
   }
 
   # Get paths for existing scripts at the target location
