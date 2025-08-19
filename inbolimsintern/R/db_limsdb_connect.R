@@ -12,7 +12,6 @@
 #' @return A DBI database connection object.
 #' @export
 limsdb_connect <- function(env = "PRD", connectlist = NULL) {
-
   if (!is.null(connectlist)) {
     if (!all(c("host", "dsn", "uid", "pwd") %in% names(connectlist))) {
       stop("connectlist not valid, should be a list at least having the elements host, dsn, uid and pwd")
@@ -34,7 +33,6 @@ limsdb_connect <- function(env = "PRD", connectlist = NULL) {
     db_user <- Sys.getenv(user_var)
     db_pass <- Sys.getenv(pass_var)
     db_dsrc <- Sys.getenv(dsrc_var)
-
     # Check that the variables were actually found
     if (db_host == "" || db_user == "" || db_pass == "" || db_dsrc == "") {
       stop(

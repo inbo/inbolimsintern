@@ -24,7 +24,7 @@ r_session_setup <- function(call_id,
                             odbc,
                             args = commandArgs(trailingOnly = TRUE),
                             cred_file = "dbcredentials.txt") {
-  message("starting setup scripts")
+  message("starting setup scripts with ", call_id, " and ", odbc, " and args: ", args)
 
   # 0. Validate input
   if (is.null(odbc) || is.na(odbc) || length(odbc) != 1) {
@@ -41,15 +41,18 @@ r_session_setup <- function(call_id,
   if (!is.character(cred_file) || length(cred_file) != 1) {
     stop("cred_file must be a single character string")
   }
-
+  message("working dir: ", getwd())
   env <- get_current_environment(odbc)
-  load_encrypted_renviron()
+  message(env, " environment")
+  e <- try(load_encrypted_renviron())
+  if(inherits(e, "try-error")) {
+    cat(e, file = tlogfile, append = TRUE)
+  }
   call_id <- as.numeric(call_id)
 
   # 1 get the arguments
   #validate if there are command arguments (= call from LIMS, not interactive)
   test_mode <- ifelse(!length(args), TRUE, FALSE)
-
   if(test_mode) {
     creds <- try(inbolimsintern::read_db_credentials(cred_file), silent = TRUE)
     if (inherits(creds, "try-error")) {
@@ -66,13 +69,14 @@ r_session_setup <- function(call_id,
       user    = "TEST")
     conn <- limsdb_connect(connectlist = arglist)
   } else {
-    if (length(args) < 2) stop("there should be at least 2 arguments odbc and call_id")
+    if (length(args) < 2) stop("there should be at least 2 arguments odbc and call   _id")
     if (args[2] != as.character(call_id)) stop("conflicting call_id")
+
     conn <- limsdb_connect(env = env)
   }
 
   if (is.character(conn)) {
-    stop(paste("db connection failed"))
+    stop(paste("db connection failed: ", conn))
   } else {
     message("database connection established")
   }

@@ -4,19 +4,14 @@
 
 #// setup environment
 ##=====================
-tlogfile <- "D:\\PIETER\\qc.log"
-cat("QC charts", as.character(Sys.time()), "\n", file = tlogfile, append = TRUE)
+
 library(tidyverse)
 library(inbolimsintern)
 library(htmltools) #must be loaded for tags functionality
 fig_height <- 600
 
-cat("libraries loaded", "\n", file = tlogfile, append = TRUE )
-
 args <- commandArgs(trailingOnly = TRUE)
-#args <- c("LWL8DEV", "9896", "TEST_INT")
-
-cat(args, "\n", file = tlogfile, append = TRUE )
+#args <- c("LWL8DEV", "9948", "TEST_INT")
 
 username <- args[3]
 call_id <- args[2]
@@ -25,21 +20,13 @@ odbc <- args[1]
 message("call_id = ", call_id)
 setup <- try(r_session_setup(call_id, odbc))
 if (inherits(setup, "try-error")) {
-  cat("probleem bij setup script\n", file = tlogfile, append = TRUE)
   stop("probleem bij setup script")
 }
-
-
-message("session prepared")
 invisible(list2env(setup, envir = .GlobalEnv))
-
-cat(conn@info$db.version, "\n",  file = tlogfile, append = TRUE)
-
+message("session prepared")
 
 status <- inbolimsintern::read_db_log(conn, call_id)
-write_db_log(conn, call_id, "P", "Started ELC_qc_chart_interactive")
-
-cat("start retrieving arguments", file = tlogfile, append = TRUE)
+write_db_log(conn, call_id, "P", "Started ELC_qc_chart_interactive", user = username)
 
 #// retrieve arguments
 ##=====================
@@ -52,7 +39,7 @@ e <- try({
   if (inherits(maxpoints, "try-error") | !length(maxpoints)) maxpoints <- maxpoints_orig
 })
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e)
+  write_db_log(conn, call_id, "E", e, user = username)
   stop(e)
 }
 
@@ -61,20 +48,19 @@ htmlrootshort <- substring(htmlfile,
                            nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
 htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 
-cat("start importing data", file = tlogfile, append = TRUE)
 
 #// Import data
 ##================
 
 write_db_log(conn, call_id, "P", "start import data from db",
-             extra = " (can take a while)")
+             extra = " (can take a while)", user = username)
 e <-
   try(
     alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
   )
 
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e)
+  write_db_log(conn, call_id, "E", e, user = username)
   stop(e)
 }
 
@@ -94,7 +80,7 @@ combis <- combis %>%
 #==================
 
 plot_widgets <- list()
-write_db_log(conn, call_id, "P", "creating widgets")
+write_db_log(conn, call_id, "P", "creating widgets", user = username)
 
 for (i in 1:nrow(combis)) {
   #prepare data
@@ -120,7 +106,7 @@ for (i in 1:nrow(combis)) {
   plot_widgets[[comb]][["data"]] <- DT::datatable(htmldata[['tabel']])
   plot_widgets[[comb]][["out3s"]] <- DT::datatable(htmldata[['out3s']])
 }
-write_db_log(conn, call_id, "P", "widgets created, creating html")
+write_db_log(conn, call_id, "P", "widgets created, creating html", user = username)
 
 
 #// CREATE HTML
@@ -216,22 +202,22 @@ layout <- tagList(
     )
   )
 )
-write_db_log(conn, call_id, "P", "widgets saved in content blocks")
+write_db_log(conn, call_id, "P", "widgets saved in content blocks", user = username)
 
 # Combine and save
 e <- try(output <- htmlwidgets::prependContent(placeholder, layout))
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e)
+  write_db_log(conn, call_id, "E", e, user = username)
   stop(e)
 }
 
 e <- try(save_report_widget(output, filename = htmlfile))
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e)
+  write_db_log(conn, call_id, "E", e, user = username)
   stop(e)
 }
 
-write_db_log(conn, call_id, "C", "QC charts saved in html")
+write_db_log(conn, call_id, "C", "QC charts saved in html", user = username)
 
 ### html tonen
 shell.exec(htmlfile)

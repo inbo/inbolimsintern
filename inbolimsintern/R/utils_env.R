@@ -10,7 +10,10 @@ load_encrypted_renviron <- function(path) {
   # Define potential paths for the encrypted file
   paths_to_check <- c(
     file.path(getwd(), ".Renviron.enc"),
-    file.path(path.expand("~"), ".Renviron.enc")
+    file.path(path.expand("~"), ".Renviron.enc"),
+    file.path("D:", "LWL8DEV", "Client", ".Renviron.enc"), #temporary location
+    file.path("D:", "LWL8UAT", "Client", ".Renviron.enc"), #temporary location
+    file.path("D:", "LWL8PRD", "Client", ".Renviron.enc")  #temporary location
   )
   if (!missing(path)) {
     paths_to_check <- c(path, paths_to_check)
@@ -27,29 +30,41 @@ load_encrypted_renviron <- function(path) {
 
   if (is.null(found_path)) {
     # It's not an error if the file doesn't exist; just means we can't load it.
-    return(invisible(FALSE))
+    stop("ERROR: .Renviron file not found:", found_path)
   }
 
-  tryCatch({
-    # Read the encoded content from the file
+  e <- try({
     encoded_content <- readLines(found_path, warn = FALSE)[1]
-
-    # Decode from Base64 to a raw vector, then to a character string
-    decoded_content <- rawToChar(base64enc::base64decode(encoded_content))
-
-    # Write the decoded content to a temporary file
-    temp_file <- tempfile()
-    on.exit(unlink(temp_file)) # Ensure temp file is deleted when function exits
-    writeLines(decoded_content, temp_file)
-
-    # Use the robust, built-in readRenviron to parse the temp file
-    readRenviron(temp_file)
-    message("Environment variables retrieved")
-    return(invisible(TRUE))
-  }, error = function(e) {
-    warning("Failed to read or decode the encrypted .Renviron file: ", found_path, call. = FALSE)
-    return(invisible(FALSE))
   })
+  if (inherits(e, "try-error")) {
+    stop(e)
+  }
+
+  e <- try({
+    decoded_content <- rawToChar(base64enc::base64decode(encoded_content))
+  })
+  if (inherits(e, "try-error")) {
+    stop(e)
+  }
+
+  e <- try({
+    temp_file <- tempfile()
+    on.exit(unlink(temp_file))
+    writeLines(decoded_content, temp_file)
+  })
+  if (inherits(e, "try-error")) {
+    stop(e)
+  }
+
+  e <- try({
+    readRenviron(temp_file)
+  })
+  if (inherits(e, "try-error")) {
+    stop("Failed to read or decode the encrypted .Renviron file: ", found_path, call. = FALSE)
+  } else {
+    message("Environment variables retrieved")
+  }
+  invisible()
 }
 
 #################################
