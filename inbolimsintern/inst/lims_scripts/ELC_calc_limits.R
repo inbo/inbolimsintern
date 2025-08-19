@@ -1,49 +1,75 @@
+#########################
 #ELC - ELC CALC LIMITS
+#########################
 #Maybe superseeded by ELC_qc_trend_evaluation
 
-### R libraries
-library(inbolimsintern)
-library(DBI)
+
+#// setup environment
+##=====================
+
+try(cat("HERE", file = "TEST_CHECK_ELC.log"))
+
 library(tidyverse)
-library(lubridate)
-library(stringr)
+library(inbolimsintern)
 
-### Logfile
-logfile <- logfile_start(prefix = "ELC_CALC_LIMITS")
-writeLines(con = logfile, paste0("ELC_CALC_LIMITS\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
-### LIMS argumenten
-call_id <- 0 #call_id <- 1748 #call_id <- 3728 #vernieuwde query call_id <- 5323,
-#verbeterde quary call_id <- 5222
-try({
-  args <- inbolimsintern::prepare_session(call_id) #hier is call_id nog niet van belang, wordt in de functie gezet
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-}, outFile = logfile)
+args <- commandArgs(trailingOnly = TRUE)
+#args <- c("LWL8DEV", "9953", "TEST_INT")
+username <- args[3]
+call_id <- args[2]
+odbc <- args[1]
 
-writeLines(con = logfile, "params\n------\n")
-cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
+try(cat("HERE", file = "TEST_CHECK_ELC.log"))
 
-### Export file ophalen
-out_file <- params %>% filter(ARG_NAME == "EXPORTFILE") %>% pull(VALUE)
+message("call_id = ", call_id)
+setup <- try(r_session_setup(call_id, odbc))
+if (inherits(setup, "try-error")) {
+  stop("probleem bij setup script")
+}
+invisible(list2env(setup, envir = .GlobalEnv))
+message("session prepared")
 
-### SQL code ophalen
+status <- inbolimsintern::read_db_log(conn, call_id)
+write_db_log(conn, call_id, "P", "Started ELC_calc_limits", user = username)
 
-sql_file <- paste(readLines(params %>% filter(ARG_NAME == "SQLFILE") %>%
-                                 pull(VALUE),
-                           encoding = "UTF-8"),
+#exportfile ophalen
+out_file <- try({
+  params %>% filter(ARG_NAME == "EXPORTFILE") %>% pull(VALUE)
+})
+if (inherits(out_file, "try-error")) {
+  write_db_log(conn, call_id, "E", "Could not find export file", user = username)
+  stop(out_file)
+}
+
+#sql code ophalen
+sql_code <- try({
+  paste(readLines(params %>% filter(ARG_NAME == "SQLFILE") %>% pull(VALUE),
+                  encoding = "UTF-8"),
                   collapse = "\n")
-cat(sql_file,  "\n", file = logfile, append = TRUE)
+})
+if (inherits(sql_code, "try-error")) {
+  write_db_log(conn, call_id, "E", "Could not retrieve sql code", user = username)
+  stop(sql_code)
+}
 
+#jaartallen ophalen
+ylast <- try(params %>% filter(ARG_NAME == "EIND") %>% pull(VALUE))
+if (inherits(ylast, "try-error")) {
+  write_db_log(conn, call_id, "E", "Could not retrieve the year information", user = username)
+  stop(ylast)
+}
+
+#// data_import
+##=====================
 
 ### Data inlezen
-print("even geduld, data uit de db aan het laden. Duurt een 30-tal seconden")
-ylast <- params %>% filter(ARG_NAME == "EIND") %>% pull(VALUE)
-ymin1 <- ymd(ylast) - years(1)
-ymin2 <- ymd(ylast) - years(2)
-ystart <- ymd(ylast) - years(3)
-try({
-  dataOrig <- dbGetQuery(conn, stringi::stri_enc_toascii(sql_file)) %>%
+message("even geduld, data uit de db aan het laden. Tot max 30-tal seconden")
+
+ymin1 <-  lubridate::ymd(ylast) - lubridate::years(1)
+ymin2 <-  lubridate::ymd(ylast) - lubridate::years(2)
+ystart <- lubridate::ymd(ylast) - lubridate::years(3)
+e <- try({
+  dataOrig <- DBI::dbGetQuery(conn, stringi::stri_enc_toascii(sql_code)) %>%
     mutate(rownr = 1:nrow(.),
            PERIOD = ifelse(ENTERED_ON > ymin1,
                          "LAST",
@@ -55,15 +81,24 @@ try({
   dataOrig <- dataOrig %>%
     left_join(dataOrig %>%
                 group_by(BATCH, SAMPLE_NAME, ANALYSIS, NAME) %>%
-                summarise(chosen_row = min(rownr)) %>%
+                summarise(chosen_row = min(rownr),
+                          .groups = "drop_last") %>%
                 mutate(IS_FIRST = TRUE),
               by = c("rownr" = "chosen_row", "BATCH", "SAMPLE_NAME", "ANALYSIS", "NAME")
                 ) %>%
     mutate(IS_FIRST = ifelse(is.na(IS_FIRST), FALSE, IS_FIRST))
+})
+if (inherits(e, "try-error")) {
+  write_db_log(conn, call_id, "E", "Could not read data", user = username)
+  stop(e)
+}
 
-  print(dim(dataOrig))
-  cat(nrow(dataOrig),  " rijen\n", file = logfile, append = TRUE)
-}, outFile = logfile)
+if (nrow(dataOrig) == 0) {
+  write_db_log(conn, call_id, "E", "No records found in data", user = username)
+  stop(e)
+} else {
+  write_db_log(conn, call_id, "P", paste0("Aantal records in data: ", nrow(dataOrig)), user = username)
+}
 
 ### aantallen
 
@@ -71,7 +106,8 @@ dataSummary <- dataOrig %>%
   filter(!is.na(PRODUCT)) %>%
   group_by(PRODUCT, SAMPLE_NAME, ANALYSIS, NAME, PERIOD) %>%
   summarise(n_tot = n(),
-            n_batch = sum(IS_FIRST, na.rm = TRUE))
+            n_batch = sum(IS_FIRST, na.rm = TRUE),
+            .groups = "drop")
 
 dataSummaryWide <- pivot_wider(dataSummary,
             id_cols = c(PRODUCT, SAMPLE_NAME , ANALYSIS, NAME),
@@ -88,6 +124,7 @@ productinfo <- dataOrig %>%
 
 #BEREKENINGEN
 
+message("start berekeningen (kan eventjes duren)")
 dfStats <- dataOrig %>%
   filter(IS_FIRST) %>%
   mutate(VALUE = as.numeric(ENTRY)) %>%
@@ -98,14 +135,10 @@ dfStats <- dataOrig %>%
 dfStats <- dfStats %>%
   mutate(USE_CALCULATION = ifelse(regexpr("\\_PBL", LIMIT_GRADE)>0, FALSE, TRUE))
 
-cat(nrow(dfStats)," rijen statistieken\n", file = logfile, append = TRUE)
+write_db_log(conn, call_id, "P", paste0("Berekeningen uigevoerd, records: ", nrow(dfStats)), user = username)
 
-# csvpath <- params %>% filter(ARG_NAME == "SQLFILE") %>% pull(VALUE)
-# csvpath <- gsub("\\.sql", replacement = ".csv", x = csvpath)
-# csvpath <- gsub("sqlcode", replacement = "export", x = csvpath)
-
-#write_excel_csv2(dfStatsAll, path = csvpath)
-write_excel_csv2(dfStats %>%
+e <- try({
+  write_excel_csv2(dfStats %>%
                    select(STAGE = LIMIT_STAGE,
                           SAMPLING_POINT = LIMIT_SAMPLING_POINT,
                           PRODUCT = LIMIT_PRODUCT,
@@ -127,4 +160,9 @@ write_excel_csv2(dfStats %>%
                           PVAL_SD = pval_f
                           ),
                  file = out_file)
-
+})
+if (inherits(e, "try-error")) {
+  write_db_log(conn, call_id, "E", paste0("wegschrijven file mislukt: ", e), user = username)
+} else {
+  write_db_log(conn, call_id, "C", paste0("resultaat bewaard als: ", out_file), user = username)
+}

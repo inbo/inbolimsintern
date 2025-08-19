@@ -23,18 +23,24 @@
 r_session_setup <- function(call_id,
                             odbc,
                             args = commandArgs(trailingOnly = TRUE),
-                            cred_file = "dbcredentials.txt") {
+                            cred_file = "dbcredentials.txt",
+                            logfile = "lims_rsession.log") {
+
   message("starting setup scripts with ", call_id, " and ", odbc, " and args: ", args)
+  cat('\n\n', as.character(Sys.time()), "setup scripts with", call_id, "and", odbc, "\n", file = logfile, append = TRUE)
 
   # 0. Validate input
   if (is.null(odbc) || is.na(odbc) || length(odbc) != 1) {
+    cat("odbc must be defined\n", file = logfile, append = TRUE)
     stop("odbc must be defined")
   }
   if (is.null(call_id) || is.na(call_id) || length(call_id) != 1) {
+    cat("call_id must be defined\n", file = logfile, append = TRUE)
     stop("call_id must have exactly 1 value, it is ", call_id)
   }
 
   if (inherits(call_id, "try-error") || is.na(call_id) || !length(call_id)) {
+    cat("call_id must convertable to numeric\n", file = logfile, append = TRUE)
     stop("call_id must be convertible to a numeric value, it is ", call_id)
   }
   #validate cred_file type
@@ -42,25 +48,33 @@ r_session_setup <- function(call_id,
     stop("cred_file must be a single character string")
   }
   message("working dir: ", getwd())
-  env <- get_current_environment(odbc)
+  env <- try(get_current_environment(odbc))
+  if (inherits(env, "try-error")) {
+    cat(env, file = logfile, append = TRUE)
+    stop(env)
+  }
+
   message(env, " environment")
   e <- try(load_encrypted_renviron())
-  if(inherits(e, "try-error")) {
-    cat(e, file = tlogfile, append = TRUE)
+  if (inherits(e, "try-error")) {
+    cat(e, file = logfile, append = TRUE)
+    stop(e)
   }
   call_id <- as.numeric(call_id)
 
   # 1 get the arguments
   #validate if there are command arguments (= call from LIMS, not interactive)
   test_mode <- ifelse(!length(args), TRUE, FALSE)
-  if(test_mode) {
+  if (test_mode) {
     creds <- try(inbolimsintern::read_db_credentials(cred_file), silent = TRUE)
     if (inherits(creds, "try-error")) {
-      stop("Database info niet gevonden, zorg dat cred_file verwijst naar een bestaand bestand\n",
-           "(Database info not found, ensure cred_file points to an existing file)\n",
-           "Attempted file: ", cred_file)
+      errmsg <- paste("Database info niet gevonden, zorg dat cred_file verwijst naar een bestaand bestand\n",
+                      "(Database info not found, ensure cred_file points to an existing file)\n",
+                      "Attempted file: ", cred_file, "\n")
+      cat(errmsg, file = logfile, append = TRUE)
+      stop(errmsg)
     }
-    arglist<- list(
+    arglist <- list(
       host    = as.character(creds$host),
       dsn     = as.character(creds$dsn),
       uid     = as.character(creds$uid),
@@ -69,20 +83,30 @@ r_session_setup <- function(call_id,
       user    = "TEST")
     conn <- limsdb_connect(connectlist = arglist)
   } else {
-    if (length(args) < 2) stop("there should be at least 2 arguments odbc and call   _id")
-    if (args[2] != as.character(call_id)) stop("conflicting call_id")
-
+    if (length(args) < 2) {
+      cat("not enough command arguments (2 needed (odbc, callid)):", args, file = logfile, append = TRUE)
+      stop("there should be at least 2 arguments odbc and call_id")
+    }
+    if (args[2] != as.character(call_id)) {
+      cat("call_ids do not correspond:", args[2], "vs", call_id, file = logfile, append = TRUE)
+      stop("conflicting call_id")
+    }
     conn <- limsdb_connect(env = env)
   }
 
   if (is.character(conn)) {
+    cat("db connection failed: ", conn, file = logfile, append = TRUE)
     stop(paste("db connection failed: ", conn))
   } else {
     message("database connection established")
   }
 
   # 3. Read script-specific parameters
-  params <- read_db_arguments(conn, call_id)
+  params <- try(read_db_arguments(conn, call_id))
+  if (inherits(params, "try-error")) {
+    cat("parameters could not be loaded: ", params, file = logfile, append = TRUE)
+    stop("parameters could not be loaded: ", params)
+  }
 
   # 5. Configure Pandoc path
   pandoc_dir <- get_lims_constant(conn, "PANDOC_DIR")
@@ -91,7 +115,7 @@ r_session_setup <- function(call_id,
 
   # 6. Return all the necessary objects in a list
   message("end setup script")
-
+  cat("r session startup successful\n", file = logfile, append = TRUE)
   list(conn = conn, params = params, env = env)
 }
 
