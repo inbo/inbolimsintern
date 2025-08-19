@@ -35,9 +35,15 @@ e <- try({
   maxpoints_orig <- 30 #indien max_points bestaat wordt dit overschreven door die waarde
   sqlfile  <- try(dplyr::filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(dplyr::filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
-  maxpoints <- try(dplyr::filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% as.integer())
-  if (inherits(maxpoints, "try-error") | !length(maxpoints)) maxpoints <- maxpoints_orig
+  maxpoints <- try(dplyr::filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% distinct() %>%  as.integer())
+  if (inherits(maxpoints, "try-error") | !length(maxpoints)) {
+    maxpoints <- maxpoints_orig
+  }
+  if (length(maxpoints) > 1) {
+    maxpoints <- max(maxpoints)
+  }
 })
+print(maxpoints)
 if (inherits(e, "try-error")) {
   write_db_log(conn, call_id, "E", e, user = username)
   stop(e)
@@ -58,7 +64,6 @@ e <-
   try(
     alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
   )
-
 if (inherits(e, "try-error")) {
   write_db_log(conn, call_id, "E", e, user = username)
   stop(e)
