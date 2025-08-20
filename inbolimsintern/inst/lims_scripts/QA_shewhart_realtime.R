@@ -7,26 +7,16 @@
 
 library(tidyverse)
 library(inbolimsintern)
-library(htmltools) #must be loaded for tags functionality
+library(htmltools)
 fig_height <- 600
 
-args <- commandArgs(trailingOnly = TRUE)
-#args <- c("LWL8DEV", "9948", "TEST_INT")
-
-username <- args[3]
-call_id <- args[2]
-odbc <- args[1]
-
-message("call_id = ", call_id)
-setup <- try(r_session_setup(call_id, odbc))
+args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "9986", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
 if (inherits(setup, "try-error")) {
   stop("probleem bij setup script")
 }
 invisible(list2env(setup, envir = .GlobalEnv))
-message("session prepared")
 
-status <- inbolimsintern::read_db_log(conn, call_id)
-write_db_log(conn, call_id, "P", "Started ELC_qc_chart_interactive", user = username)
 
 #// retrieve arguments
 ##=====================
@@ -35,7 +25,7 @@ e <- try({
   maxpoints_orig <- 30 #indien max_points bestaat wordt dit overschreven door die waarde
   sqlfile  <- try(dplyr::filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE))
   htmlfile <- try(dplyr::filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE))
-  maxpoints <- try(dplyr::filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% distinct() %>%  as.integer())
+  maxpoints <- try(dplyr::filter(params, ARG_NAME == "MAX_POINTS") %>% pull(VALUE) %>% unique() %>%  as.integer())
   if (inherits(maxpoints, "try-error") | !length(maxpoints)) {
     maxpoints <- maxpoints_orig
   }
@@ -45,7 +35,7 @@ e <- try({
 })
 print(maxpoints)
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e, user = username)
+  write_db_log(e, "E")
   stop(e)
 }
 
@@ -58,14 +48,13 @@ htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile))))
 #// Import data
 ##================
 
-write_db_log(conn, call_id, "P", "start import data from db",
-             extra = " (can take a while)", user = username)
+write_db_log("start import data from db", "P")
 e <-
   try(
     alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints)
   )
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e, user = username)
+  write_db_log(e, "E")
   stop(e)
 }
 
@@ -85,7 +74,7 @@ combis <- combis %>%
 #==================
 
 plot_widgets <- list()
-write_db_log(conn, call_id, "P", "creating widgets", user = username)
+write_db_log("creating widgets", "P")
 
 for (i in 1:nrow(combis)) {
   #prepare data
@@ -111,7 +100,7 @@ for (i in 1:nrow(combis)) {
   plot_widgets[[comb]][["data"]] <- DT::datatable(htmldata[['tabel']])
   plot_widgets[[comb]][["out3s"]] <- DT::datatable(htmldata[['out3s']])
 }
-write_db_log(conn, call_id, "P", "widgets created, creating html", user = username)
+write_db_log("widgets created, start creating html", "P")
 
 
 #// CREATE HTML
@@ -207,22 +196,22 @@ layout <- tagList(
     )
   )
 )
-write_db_log(conn, call_id, "P", "widgets saved in content blocks", user = username)
+write_db_log("widgets saved in content blocks", "P")
 
 # Combine and save
 e <- try(output <- htmlwidgets::prependContent(placeholder, layout))
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e, user = username)
+  write_db_log(e, "E")
   stop(e)
 }
 
 e <- try(save_report_widget(output, filename = htmlfile))
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", e, user = username)
+  write_db_log(e, "E")
   stop(e)
 }
 
-write_db_log(conn, call_id, "C", "QC charts saved in html", user = username)
+write_db_log("QC charts saved in html", "C")
 
 ### html tonen
 shell.exec(htmlfile)

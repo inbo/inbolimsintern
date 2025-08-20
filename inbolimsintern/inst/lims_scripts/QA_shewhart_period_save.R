@@ -1,27 +1,29 @@
 
-# QC chart to archive
+##################################
+#Save QC period charts
+##################################
 
-### R libraries
-library(inbolimsintern)
-library(DBI)
+#// setup environment
+##=====================
+
 library(tidyverse)
+library(inbolimsintern)
+args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "10020", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+invisible(list2env(setup, envir = .GlobalEnv))
 
-### Logfile
-logfile <- logfile_start(prefix = "CTR_SAVE")
-writeLines(con = logfile, paste0("Bewaren archiefkaarten\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
+if (inherits(setup, "try-error")) {
+  write_db_log(paste("Problem setting up R script", setup), "E")
+  stop("probleem bij setup script")
+} else {
+  write_db_log("R session setup finished", "P")
+}
 
-### LIMS argumenten
-call_id <- 0 #call_id <- 4269 call_id <- 4275 call_id <- 5388 5590 8964
-try({
-  args <- inbolimsintern::prepare_session(call_id)
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-}, outFile = logfile)
 
-writeLines(con = logfile, "params\n------\n")
-cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
+#// retrieve arguments
+##=====================
 
-try({
+e  <- try({
   samplingpoint = 'NONE'
   sqlfile <- filter(params, ARG_NAME == "SQL_FILE") %>% pull(VALUE)
   htmlfile <- filter(params, ARG_NAME == "HTML_FILE") %>% pull(VALUE)
@@ -33,33 +35,49 @@ try({
   user <- filter(params, ARG_NAME == "USER") %>% pull(VALUE)
   htmlrootshort <- substring(htmlfile, max(unlist(gregexpr("\\\\", htmlfile))) + 1, nchar(htmlfile) - 5) #+1 - 5 (zonder extensie)
   htmlpath <-  substring(htmlfile, 1, max(unlist(gregexpr("\\\\", htmlfile)))) #including last backslash
-}, outFile = logfile)
+})
+if (inherits(e, "try-error")) {
+  write_db_log(paste("problem retrieving parameters", e), "E")
+  stop(e)
+} else {
+  write_db_log("parameters retrieved", "P")
+}
 
 
 ### data inlezen
 
-try({
-  #haal sqlcode op
-  sqlcode <- readLines(sqlfile)
-  sqlcode <- paste(sqlcode, collapse = "\n")
-  cat("\n", sqlcode, file = logfile, append = TRUE)
-
-  #haal data binnen (deze bevat reeds de limieten)
-  alldata<- get_ELC_data(conn, sqlfile, keep = Inf, logfile = logfile) %>%
+e <- try({
+  alldata <- get_ELC_data(conn, sqlfile, keep = Inf) %>%
     filter(C_CTR_ADD == 'T') %>%
     mutate(CALL_ID = call_id)  #voeg callID toe
 }, outFile = logfile)
+if(inherits(e, "try-error")) {
+  write_db_log(paste("data kon niet ingelezen worden:", e), "E")
+  stop(e)
+}
+if (nrow(alldata) == 0) {
+  stop("geen data records gevonden")
+  write_db_log("geen data records gevonden", "E")
+} else {
+  write_db_log(paste("aantal records:", nrow(alldata)), "P")
+}
 
-if (nrow(alldata) == 0) cat("\nGEEN DATA\n", file = logfile, append = TRUE)
 combis <- unique(alldata$combi)
 
 archive_data <- NULL
 for (comb in combis) {
-  print(comb)
+  message(comb)
   plotdata <- alldata %>% filter(comb == combi)
   htmldata <- elc_htmldata(plotdata)
   archive_data <- rbind(archive_data, htmldata$plot)
 }
+if (nrow(archive_data) == 0) {
+  write_db_log(" geen plot records om te bewaren", "E")
+  stop("geen data rijen")
+} else {
+  write_db_log(paste("plot records om te bewaren", nrow(archive_data)), "P")
+}
+
 archive_data_export <- archive_data %>%
   transmute(LABEL = label, DATE = datetime, USER = user,
             PRODUCT = product, LIMIT_VERSION = VERSION,
@@ -71,6 +89,15 @@ archive_data_export <- archive_data %>%
             BATCH_POSITION = ORDER_NUMBER, CALL_ID) %>%
   arrange(PRODUCT, SAMPLING_POINT, ANALYSIS, NAME, SAMPLE_NAME, BATCHNR)
 
-DBI::dbWriteTable(conn, name = "C_CTR_ARCHIVE", value = archive_data_export,
-                  overwrite = FALSE, append = TRUE)
+
+e <- try(
+  DBI::dbWriteTable(conn, name = "C_CTR_ARCHIVE", value = archive_data_export,
+                    overwrite = FALSE, append = TRUE)
+)
+if (inherits(e, "try-error")) {
+  write_db_log(e, "E")
+  stop(e)
+} else {
+  write_db_log(paste("archiefgegevens bewaard, aantal punten:", nrow(archive_data_export)), "C")
+}
 

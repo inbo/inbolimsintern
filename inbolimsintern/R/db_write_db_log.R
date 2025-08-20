@@ -1,63 +1,119 @@
-#' Write a Log Entry to the Database
+#' Write a log message to the database.
 #'
-#' Inserts a new record into the `C_RSCRIPT_LOG` table to log the status of a
-#' script execution.
+#' This function inserts a log entry into the C_RSCRIPT_LOG table.
+#' The 'message' and 'status' are required. Other parameters like 'call_id',
+#' 'user', and 'conn' are optional; if not provided, the function will attempt
+#' to retrieve them from the parent environment.
 #'
-#' @param conn A DBI database connection object.
-#' @param call_id A unique identifier for the specific script execution.
-#' @param status A character code representing the status. It's recommended to use
-#'   a consistent set of codes, for example:
-#'   \itemize{
-#'     \item \code{START}: The process has started.
-#'     \item \code{SUCCESS}: The process completed without errors.
-#'     \item \code{FAIL}: The process terminated with an error.
-#'     \item \code{INFO}: A generic informational message.
-#'   }
-#' @param message An optional character string providing additional details or an
-#'   error message. Defaults to an empty string.
-#' @param extra Extra information that is printed (solely on the console) after the message
-#' @param print If TRUE also a message is printed on the console
-#' @param user optional the user name from whom this log is created
+#' @param message The log message string to be written. (Required)
+#' @param status The status of the log entry (e.g., "I", "P" (in progress), "E" (error), "C" (completed)). (Required)
+#' @param call_id A unique identifier for the script execution. If NULL,
+#'   the function will look for a 'call_id' variable in the parent frame.
+#' @param user_name The username associated with the log entry. If NULL,
+#'   the function will look for a 'user_name' variable in the parent frame.
+#' @param conn The database connection object. If NULL, the function will
+#'   look for a 'conn' variable in the parent frame.
+#' @param extra An optional string to append to the message when printing to the
+#'   console. Defaults to an empty string.
+#' @param print_log A logical value indicating whether to print the message to the
+#'   console. Defaults to TRUE.
 #'
-#' @returns Invisibly returns the number of rows affected by the insert statement
-#'   (typically 1 on success). The return value is invisible to prevent it
-#'   from printing to the console.
-#'
-#' @importFrom DBI dbExecute
+#' @return Invisibly returns the number of rows affected by the SQL execution and writes a message to the console
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' # Assuming 'conn' is an active database connection
-#' call_id <- 12345
+#' # Assuming 'my_conn', 'current_user', and 'run_id' exist in the environment
+#' conn <- my_conn
+#' user_name <- current_user
+#' call_id <- run_id
 #'
-#' # Log the start of a script
-#' write_db_log(conn, call_id, "START", "Processing started for monthly report.")
-#'
-#' # Log a successful completion
-#' write_db_log(conn, call_id, "SUCCESS")
-#'
-#' # Log a failure
-#' write_db_log(conn, call_id, "FAIL", "Error in data aggregation step.")
+#' # Now you can call the function with only the required arguments
+#' write_db_log("Starting the process", "P")
+#' # ... some processing ...
+#' write_db_log("Process finished successfully", "C")
 #' }
-write_db_log <- function(conn,
-                         call_id,
+write_db_log <- function(message,
                          status,
-                         message = "",
+                         call_id = NULL,
+                         user_name = NULL,
+                         conn = NULL,
                          extra = "",
-                         user = "",
-                         print = T) {
+                         print_log = TRUE) {
+
+  # --- Argument Handling ---
+  # If arguments are not provided, try to get them from the parent environment.
+  # This makes the function call cleaner at the top level.
+
+  # Get call_id if it's not provided
+  if (is.null(call_id)) {
+    if (exists("call_id", envir = parent.frame())) {
+      call_id <- get("call_id", envir = parent.frame())
+    } else {
+      stop("Argument 'call_id' was not provided and could not be found in the parent environment.", call. = FALSE)
+    }
+  }
+
+  # Get user if it's not provided
+  if (is.null(user_name)) {
+    if (exists("user_name", envir = parent.frame())) {
+      user_name <- get("user_name", envir = parent.frame())
+    } else {
+      stop("Argument 'user_name' was not provided and could not be found in the parent environment.", call. = FALSE)
+    }
+  }
+
+  # Get conn if it's not provided
+  if (is.null(conn)) {
+    if (exists("conn", envir = parent.frame())) {
+      conn <- get("conn", envir = parent.frame())
+    } else {
+      stop("Argument 'conn' was not provided and could not be found in the parent environment.", call. = FALSE)
+    }
+  }
+
+  # --- Database Execution ---
   sql <- "INSERT INTO C_RSCRIPT_LOG (call_id, status, timestamp, log_message, lims_user) VALUES (?, ?, ?, ?, ?);"
+
+  # Print the message to the console if requested
+  if (print_log) {
+    # Using paste to handle the 'extra' argument cleanly
+    message(paste(message, extra))
+  }
 
   # Execute the query, passing the values as parameters.
   # The function is wrapped in invisible() so it doesn't print the
   # number of affected rows (1) to the console upon success.
-  if (print) message(message, extra)
   invisible(
     DBI::dbExecute(
       conn,
       sql,
-      params = list(call_id, status, Sys.time(), message, user)
+      params = list(call_id, status, Sys.time(), message, user_name)
     )
   )
 }
+
+
+
+
+# write_db_log <- function(message,
+#                          status,
+#                          call_id,
+#                          user,
+#                          conn,
+#                          extra = "",
+#                          print = T) {
+#   sql <- "INSERT INTO C_RSCRIPT_LOG (call_id, status, timestamp, log_message, lims_user) VALUES (?, ?, ?, ?, ?);"
+#
+#   # Execute the query, passing the values as parameters.
+#   # The function is wrapped in invisible() so it doesn't print the
+#   # number of affected rows (1) to the console upon success.
+#   if (print) message(message, extra)
+#   invisible(
+#     DBI::dbExecute(
+#       conn,
+#       sql,
+#       params = list(call_id, status, Sys.time(), message, user)
+#     )
+#   )
+# }

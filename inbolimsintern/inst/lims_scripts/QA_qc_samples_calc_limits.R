@@ -7,37 +7,26 @@
 #// setup environment
 ##=====================
 
-try(cat("HERE", file = "TEST_CHECK_ELC.log"))
-
 library(tidyverse)
 library(inbolimsintern)
 
-
 args <- commandArgs(trailingOnly = TRUE)
-#args <- c("LWL8DEV", "9953", "TEST_INT")
-username <- args[3]
-call_id <- args[2]
-odbc <- args[1]
-
-try(cat("HERE", file = "TEST_CHECK_ELC.log"))
-
-message("call_id = ", call_id)
-setup <- try(r_session_setup(call_id, odbc))
+setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "9953", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
 if (inherits(setup, "try-error")) {
   stop("probleem bij setup script")
 }
 invisible(list2env(setup, envir = .GlobalEnv))
-message("session prepared")
 
-status <- inbolimsintern::read_db_log(conn, call_id)
-write_db_log(conn, call_id, "P", "Started ELC_calc_limits", user = username)
+#// parameters ophalen
+##=====================
 
 #exportfile ophalen
 out_file <- try({
   params %>% filter(ARG_NAME == "EXPORTFILE") %>% pull(VALUE)
 })
 if (inherits(out_file, "try-error")) {
-  write_db_log(conn, call_id, "E", "Could not find export file", user = username)
+  write_db_log("Could not find export file", "E")
   stop(out_file)
 }
 
@@ -48,14 +37,14 @@ sql_code <- try({
                   collapse = "\n")
 })
 if (inherits(sql_code, "try-error")) {
-  write_db_log(conn, call_id, "E", "Could not retrieve sql code", user = username)
+  write_db_log("Could not retrieve sql code", "E")
   stop(sql_code)
 }
 
 #jaartallen ophalen
 ylast <- try(params %>% filter(ARG_NAME == "EIND") %>% pull(VALUE))
 if (inherits(ylast, "try-error")) {
-  write_db_log(conn, call_id, "E", "Could not retrieve the year information", user = username)
+  write_db_log("Could not retrieve the year information", "E")
   stop(ylast)
 }
 
@@ -89,15 +78,15 @@ e <- try({
     mutate(IS_FIRST = ifelse(is.na(IS_FIRST), FALSE, IS_FIRST))
 })
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", "Could not read data", user = username)
+  write_db_log("Could not read data", "E")
   stop(e)
 }
 
 if (nrow(dataOrig) == 0) {
-  write_db_log(conn, call_id, "E", "No records found in data", user = username)
+  write_db_log("No records found in data", "E")
   stop(e)
 } else {
-  write_db_log(conn, call_id, "P", paste0("Aantal records in data: ", nrow(dataOrig)), user = username)
+  write_db_log(paste0("Aantal records in data: ", nrow(dataOrig)), "P")
 }
 
 ### aantallen
@@ -135,7 +124,7 @@ dfStats <- dataOrig %>%
 dfStats <- dfStats %>%
   mutate(USE_CALCULATION = ifelse(regexpr("\\_PBL", LIMIT_GRADE)>0, FALSE, TRUE))
 
-write_db_log(conn, call_id, "P", paste0("Berekeningen uigevoerd, records: ", nrow(dfStats)), user = username)
+write_db_log( paste0("Berekeningen uigevoerd, records: ", nrow(dfStats)), "P")
 
 e <- try({
   write_excel_csv2(dfStats %>%
@@ -162,7 +151,7 @@ e <- try({
                  file = out_file)
 })
 if (inherits(e, "try-error")) {
-  write_db_log(conn, call_id, "E", paste0("wegschrijven file mislukt: ", e), user = username)
+  write_db_log(paste0("wegschrijven file mislukt: ", e), "E")
 } else {
-  write_db_log(conn, call_id, "C", paste0("resultaat bewaard als: ", out_file), user = username)
+  write_db_log(paste0("resultaat bewaard als: ", out_file), "C")
 }

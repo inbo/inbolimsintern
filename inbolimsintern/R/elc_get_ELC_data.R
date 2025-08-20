@@ -11,13 +11,6 @@ get_ELC_data <- function(dbcon, sqlfile, keep = 30, productversions = NULL) {
   sqlcode <- readLines(sqlfile)
   sqlcode <- paste(sqlcode, collapse = "\n")
   sqlcode <- stringi::stri_encode(sqlcode, to = "UTF-8")
-  #diff between greek mu and micro mu: (niet meer nodig)
-  #oplossing: rechtstreeks in query:
-  #SELECT REPLACE(r.NAME, NCHAR(0x00B5), N'u') AS NAME (ook in join gebruiken)
-  #sqlcode <- gsub("/u03BCm", "/u00B5m", sqlcode)
-  #sqlcode <- gsub("/u03BCS", "/u00B5S", sqlcode)
-  #sqlcode <- gsub("µm", "/u00B5m", sqlcode)
-  #sqlcode <- gsub("µS", "/u00B5S", sqlcode)
 
   plotdata <- DBI::dbGetQuery(dbcon, sqlcode)
   if (!nrow(plotdata)) {

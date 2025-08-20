@@ -28,7 +28,7 @@ elc_htmldata(
 
 \item{digits}{aantal digits te printen in de html}
 
-\item{check_rules}{moeten de grenzen berekend worden of zitten die al als kolom in de data}
+\item{check_rules}{moeten de grenzen berekend worden of zitten die al als kolom in de data:  OUT3S, OUT2S, WARN, DRIFT, BIAS, COLOR, SIZE, LCL3S, LCL2S, LCL1S, UCL1S, UCL2S, UCL3S, X_CTR_X, C_CTR_SD, C_CERTIFIED_VALUE, C_CERTIFIED_SD, PRODUCT, PRODUCT_VERSION}
 
 \item{reverse_table_order}{Moet de data van recent naar oud geschikt worden in de html tabel}
 }

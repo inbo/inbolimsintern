@@ -2,62 +2,57 @@
 % Please edit documentation in R/db_write_db_log.R
 \name{write_db_log}
 \alias{write_db_log}
-\title{Write a Log Entry to the Database}
+\title{Write a log message to the database.}
 \usage{
 write_db_log(
-  conn,
-  call_id,
+  message,
   status,
-  message = "",
+  call_id = NULL,
+  user_name = NULL,
+  conn = NULL,
   extra = "",
-  user = "",
-  print = T
+  print_log = TRUE
 )
 }
 \arguments{
-\item{conn}{A DBI database connection object.}
+\item{message}{The log message string to be written. (Required)}
 
-\item{call_id}{A unique identifier for the specific script execution.}
+\item{status}{The status of the log entry (e.g., "I", "P" (in progress), "E" (error), "C" (completed)). (Required)}
 
-\item{status}{A character code representing the status. It's recommended to use
-a consistent set of codes, for example:
-\itemize{
-  \item \code{START}: The process has started.
-  \item \code{SUCCESS}: The process completed without errors.
-  \item \code{FAIL}: The process terminated with an error.
-  \item \code{INFO}: A generic informational message.
-}}
+\item{call_id}{A unique identifier for the script execution. If NULL,
+the function will look for a 'call_id' variable in the parent frame.}
 
-\item{message}{An optional character string providing additional details or an
-error message. Defaults to an empty string.}
+\item{user_name}{The username associated with the log entry. If NULL,
+the function will look for a 'user_name' variable in the parent frame.}
 
-\item{extra}{Extra information that is printed (solely on the console) after the message}
+\item{conn}{The database connection object. If NULL, the function will
+look for a 'conn' variable in the parent frame.}
 
-\item{user}{optional the user name from whom this log is created}
+\item{extra}{An optional string to append to the message when printing to the
+console. Defaults to an empty string.}
 
-\item{print}{If TRUE also a message is printed on the console}
+\item{print_log}{A logical value indicating whether to print the message to the
+console. Defaults to TRUE.}
 }
 \value{
-Invisibly returns the number of rows affected by the insert statement
-  (typically 1 on success). The return value is invisible to prevent it
-  from printing to the console.
+Invisibly returns the number of rows affected by the SQL execution and writes a message to the console
 }
 \description{
-Inserts a new record into the `C_RSCRIPT_LOG` table to log the status of a
-script execution.
+This function inserts a log entry into the C_RSCRIPT_LOG table.
+The 'message' and 'status' are required. Other parameters like 'call_id',
+'user', and 'conn' are optional; if not provided, the function will attempt
+to retrieve them from the parent environment.
 }
 \examples{
 \dontrun{
-# Assuming 'conn' is an active database connection
-call_id <- 12345
+# Assuming 'my_conn', 'current_user', and 'run_id' exist in the environment
+conn <- my_conn
+user_name <- current_user
+call_id <- run_id
 
-# Log the start of a script
-write_db_log(conn, call_id, "START", "Processing started for monthly report.")
-
-# Log a successful completion
-write_db_log(conn, call_id, "SUCCESS")
-
-# Log a failure
-write_db_log(conn, call_id, "FAIL", "Error in data aggregation step.")
+# Now you can call the function with only the required arguments
+write_db_log("Starting the process", "P")
+# ... some processing ...
+write_db_log("Process finished successfully", "C")
 }
 }

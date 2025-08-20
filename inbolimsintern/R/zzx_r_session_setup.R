@@ -4,16 +4,16 @@
 #' It prepares the session, connects to the LIMS database, reads parameters,
 #' and sets up logging and pandoc paths.
 #'
-#' @param call_id The unique identifier for the script call, passed via command line as commandArgs()[2]
-#' @param odbc The odbc that is given as commandArgs()[1] to define environment
-#' @param args defaults to commandArgs(trailingOnly = TRUE), but user can specify a custom character vector of arguments. The first 4 arguments must be dbodbc, dbuid, dbpwd and call_id, optionally the fifth should be user
+#' @param args defaults to commandArgs(trailingOnly = TRUE), but user can specify a custom character vector of arguments. The first 3 arguments must be dbodbc, call_id, and user
+#' @param test_mode if TRUE the credentials are read from the cred_file
 #' @param cred_file Path to the credentials file containing
-#' @param logfile logfile to write to, because this routine is ran before the databae connection is established and the logs can be saved there
 #'   database connection information. Used only in interactive/test mode.
 #'   The file should contain at least three lines containing
 #'   and just one column containing: data source, username, and password
 #'   in this exact order
 #'   Default is "dbcredentials.txt".
+#' @param logfile logfile to write to, because this routine is ran before the databae connection is established and the logs can be saved there
+
 #' @return A list containing essential objects for the script:
 #'   \itemize{
 #'     \item \code{conn}: The DBI database connection object.
@@ -21,29 +21,29 @@
 #'   }
 #' @importFrom DBI dbConnect
 #' @export
-r_session_setup <- function(call_id,
-                            odbc,
-                            args = commandArgs(trailingOnly = TRUE),
+r_session_setup <- function(args = commandArgs(trailingOnly = TRUE),
+                            test_mode = FALSE,
                             cred_file = "dbcredentials.txt",
                             logfile = "lims_rsession.log") {
+  message("starting r session setup")
+  message("arguments: ", args)
 
-  message("starting setup scripts with ", call_id, " and ", odbc, " and args: ", args)
-  cat('\n\n', as.character(Sys.time()), "setup scripts with", call_id, "and", odbc, "\n", file = logfile, append = TRUE)
+  #// 0. validate arguments
+  cat('\n\n', as.character(Sys.time()), "setup scripts with",
+      args, "\n", file = logfile, append = TRUE)
 
-  # 0. Validate input
-  if (is.null(odbc) || is.na(odbc) || length(odbc) != 1) {
-    cat("odbc must be defined\n", file = logfile, append = TRUE)
-    stop("odbc must be defined")
+  if (length(args) < 3) {
+    stop("At least 3 arguments must be passed containing the odbc, call_id and user_name")
   }
-  if (is.null(call_id) || is.na(call_id) || length(call_id) != 1) {
-    cat("call_id must be defined\n", file = logfile, append = TRUE)
-    stop("call_id must have exactly 1 value, it is ", call_id)
+  odbc <- args[1]
+
+  user_name <- args[3]
+  call_id <- try(as.numeric(args[2]))
+  if(inherits(call_id, "try-error")) {
+    cat("call_id cannot be converted to numeric\n", file = logfile, append = TRUE)
+    stop("call_id must be numeric")
   }
 
-  if (inherits(call_id, "try-error") || is.na(call_id) || !length(call_id)) {
-    cat("call_id must convertable to numeric\n", file = logfile, append = TRUE)
-    stop("call_id must be convertible to a numeric value, it is ", call_id)
-  }
   #validate cred_file type
   if (!is.character(cred_file) || length(cred_file) != 1) {
     stop("cred_file must be a single character string")
@@ -61,11 +61,9 @@ r_session_setup <- function(call_id,
     cat(e, file = logfile, append = TRUE)
     stop(e)
   }
-  call_id <- as.numeric(call_id)
 
-  # 1 get the arguments
-  #validate if there are command arguments (= call from LIMS, not interactive)
-  test_mode <- ifelse(!length(args), TRUE, FALSE)
+  #// 1 get the arguments
+  #validate if is test_mode
   if (test_mode) {
     creds <- try(inbolimsintern::read_db_credentials(cred_file), silent = TRUE)
     if (inherits(creds, "try-error")) {
@@ -84,17 +82,8 @@ r_session_setup <- function(call_id,
       user    = "TEST")
     conn <- limsdb_connect(connectlist = arglist)
   } else {
-    if (length(args) < 2) {
-      cat("not enough command arguments (2 needed (odbc, callid)):", args, file = logfile, append = TRUE)
-      stop("there should be at least 2 arguments odbc and call_id")
-    }
-    if (args[2] != as.character(call_id)) {
-      cat("call_ids do not correspond:", args[2], "vs", call_id, file = logfile, append = TRUE)
-      stop("conflicting call_id")
-    }
     conn <- limsdb_connect(env = env)
   }
-
   if (is.character(conn)) {
     cat("db connection failed: ", conn, file = logfile, append = TRUE)
     stop(paste("db connection failed: ", conn))
@@ -102,27 +91,34 @@ r_session_setup <- function(call_id,
     message("database connection established")
   }
 
-  # 3. Read script-specific parameters
+  #// 2 Initiate logging
+  #read en write logs
+  lims_log_entry <- read_db_log(conn, call_id)
+  if (!nrow(lims_log_entry)) {
+    lims_log_entry <- data.frame(LOG_MESSAGE = "Undefined routine")
+  }
+  write_db_log(
+    message = paste("Started", lims_log_entry[1, "LOG_MESSAGE"]),
+    status = "P",
+    conn = conn,
+    call_id = call_id,
+    user_name = user_name)
+
+  #// 3. Read script-specific parameters
   params <- try(read_db_arguments(conn, call_id))
   if (inherits(params, "try-error")) {
-    cat("parameters could not be loaded: ", params, file = logfile, append = TRUE)
-    stop("parameters could not be loaded: ", params)
+    msg <- paste("parameters could not be loaded: ", params)
+    write_db_log(msg, "E", conn = conn, call_id = call_id, user_name = user_name)
+    stop(msg)
   }
 
-  # 5. Configure Pandoc path
+  #// 4. Configure Pandoc path
   pandoc_dir <- get_lims_constant(conn, "PANDOC_DIR")
   Sys.setenv(PATH = paste(pandoc_dir, Sys.getenv("PATH"), sep = .Platform$path.sep))
   Sys.setenv(RSTUDIO_PANDOC = pandoc_dir)
 
-  # 6. Return all the necessary objects in a list
-  message("end setup script")
-  cat("r session startup successful\n", file = logfile, append = TRUE)
-  list(conn = conn, params = params, env = env)
+  #// 5. Return all the necessary objects in a list
+  msg <- "r session startup successful"
+  write_db_log(msg, "P", conn = conn, call_id = call_id, user_name = user_name)
+  list(conn = conn, user_name = user_name, call_id = call_id, params = params, env = env)
 }
-
-
-#If logging via text is wanted, add this and return the logfile
-  # 4. Set up logging directory and file
-  # log_dir <- get_lims_constant(conn, "DYNAMIC_DIR")
-  # log_dir <- sub("\\DYNAMIC\\", "\\LOGS\\", log_dir, fixed = TRUE)
-  # logfile <- logfile_start(path = log_dir, prefix = "ELC_Shewhart") # You might want the prefix to be dynamic
