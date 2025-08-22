@@ -112,7 +112,6 @@ get_data_from_importfile <- function(path, batch_info, interpret_types = TRUE, d
 #' @return geen return, wel verplaatste bestanden
 #' @export
 move_batch_importfile <- function(data, source_path, source_file, batch_info, scheduler_base_dir) {
-  print(dim(data))
   if  (is.null(data)) {
     stop(paste("Geen data om te verplaatsen uit file", source))
   }
@@ -129,16 +128,15 @@ move_batch_importfile <- function(data, source_path, source_file, batch_info, sc
     file = paste0(batchname, "---", datetime_text(), '.tsv')
   }
 
-  targetfile = paste(scheduler_base_dir, labo, template, file, sep = "\\")
-  print(source)
-  print(targetfile)
-  print(batch_info[1,"template"])
+  if (!dir.exists(file.path(scheduler_base_dir, labo))) dir.create(file.path(scheduler_base_dir, labo))
+  if (!dir.exists(file.path(scheduler_base_dir, labo, template))) dir.create(file.path(scheduler_base_dir, labo, template))
+  targetfile = file.path(scheduler_base_dir, labo, template, file)
+  message("written to: ",targetfile)
   if ((as.character(batch_info[1,"template"]) %in% c("TEXTUUR_LD_LS13320_V"))) {
     print("gewoon de originele file kopieren met extensie tsv")
     res <- try(file.copy(source, targetfile))
   } else {
     res <- try(readr::write_tsv(data, file = targetfile, col_names = FALSE, na = ''))
-
   }
   print(res)
   if (class(res)[1] != "try-error") {

@@ -1,56 +1,67 @@
+#######################################
+### RUN CHARTS
+#######################################
+
+#// setup environment
+##=====================
+
 library(tidyverse)
-library(readxl)
 library(inbolimsintern)
-#library(plotly) pandoc nodig
+library(readxl)
+args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "9794", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+invisible(list2env(setup, envir = .GlobalEnv))
 
-logfile <- logfile_start(prefix = "RUN_CHART")
-writeLines(con = logfile, paste0("inbolimsintern versie: ", packageVersion("inbolimsintern")))
-
-#call_id <- 5243
-#call_id <- 857
-#call_id <- 9791 9794 #lims8dev
-call_id <- 0
-
-try({
-  args <- inbolimsintern::prepare_session(call_id) #call_id nog niet van belang als het script vanuit lims zordt gerund
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-}, outFile = logfile)
-
-
-project <- (params %>% filter(ARG_NAME == "PROJECT") %>% pull(VALUE))[1]
-print(project)
-
-charts <- params %>% filter(ARG_NAME == "CHART") %>% pull(VALUE)
-if (!length(charts)) {
-  charts = " "
+if (inherits(setup, "try-error")) {
+  write_db_log(paste("Problem setting up R script", setup), "E")
+  stop("probleem bij setup script:", e)
+} else {
+  write_db_log("R session setup finished", "P")
 }
 
-
-if (nrow(filter(params, ARG_NAME == "HTMLPATH")) > 0)
-{
+e <- try({
+  project <- (params %>% filter(ARG_NAME == "PROJECT") %>% pull(VALUE))[1]
+  message(project)
+  filepath <- paste0(params %>% filter(ARG_NAME == "PATH") %>%  pull(VALUE))[1]
+  charts <- params %>% filter(ARG_NAME == "CHART") %>% pull(VALUE)
   htmlfile <- (params %>% filter(ARG_NAME == "HTMLPATH") %>% pull(.data$VALUE))[1]
-
-} else {
+  filebase <- gsub("\\.html", "", htmlfile)
+  if (!length(charts)) {
+    charts = " "
+  }
   datetxt <- datetime_text()
-  filebase <- paste0((params %>% filter(ARG_NAME == "PATH") %>%  pull(VALUE))[1],
-                     "\\run_chart_", project, "_", datetxt)
-  htmlfile <- paste0(filebase, ".html")
+})
+if (inherits(e, "try-error")){
+  write_db_log(e, "E")
+} else {
+  write_db_log("Parameters ingelezen", "P")
 }
 
 #write html contents
 
 html <- "<HTML><HEAD></HEAD><BODY>"
 for (i in 1:length(charts)) {
-  try(qry <- run_chart_query(params, index = i), outFile = logfile)
-  try(plotdata <- get_run_chart_data(conn, qry), outFile = logfile)
-  try(htmlstring <- html_run_chart(plotdata, project = project, path = filebase,
-                                   split_fig = TRUE, chart_header = charts[i]), outFile = logfile)
-  try(html <- paste0(html, htmlstring), outFile = logfile)
+  e <- try(qry <- run_chart_query(params, index = i))
+  if (inherits(e, "try-error")) write_db_log(e, "E")
+  e <- try(plotdata <- get_run_chart_data(conn, qry))
+  if (inherits(e, "try-error")) write_db_log(e, "E")
+  e <-try(htmlstring <- html_run_chart_embedded(plotdata, project = project, path = filebase,
+                                   split_fig = TRUE, chart_header = charts[i]))
+  if (inherits(e, "try-error")) write_db_log(e, "E")
+  e <- try(html <- paste0(html, htmlstring))
+  if (inherits(e, "try-error")) write_db_log(e, "E")
 }
 html <- paste0(html, "</BODY></HTML>")
-writeLines(html, con = htmlfile)
-try(shell.exec(htmlfile), outFile = logfile)
+
+e <- try(writeLines(html, con = htmlfile))
+if (inherits(e, "try-error")) {
+  write_db_log(e, "E")
+  stop(e)
+}
+write_db_log("Script afgerond", "C")
+
+
+try(shell.exec(htmlfile))
 
 
 #pl <- ggplotly(p)

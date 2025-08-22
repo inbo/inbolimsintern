@@ -1,34 +1,46 @@
-#ELC - Evaluatie QC charts over the years
+#############################################
+### TREND EVALUATIE (gebruikt kalenderjaren)
+#############################################
 
-### R libraries
-library(inbolimsintern)
-library(DBI)
+#// setup environment
+##=====================
+
 library(tidyverse)
-
-### Logfile
-logfile <- logfile_start(prefix = "ELC_qc_eval")
-writeLines(con = logfile, paste0("ELC_Evaluatie\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
-
-### LIMS argumenten
-call_id <- 0 #call_id = 6661 7107  7108 9373
-try({
-  args <- inbolimsintern::prepare_session(call_id)
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-}, outFile = logfile)
-
+library(DBI)
+library(inbolimsintern)
 alpha <- 0.01
 
-writeLines(con = logfile, "params\n------\n")
-cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
+setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "10056", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+invisible(list2env(setup, envir = .GlobalEnv))
 
-### inlezen gegevens
+if (inherits(setup, "try-error")) {
+  write_db_log(paste("Problem setting up R script", setup), "E")
+  stop("probleem bij setup script")
+} else {
+  write_db_log("R session setup finished", "P")
+}
 
-qcproduct <- params %>% filter(ARG_NAME == "PRODUCT") %>% pull(VALUE)
-lastyear <- params %>% filter(ARG_NAME == "LAST_YEAR") %>% pull(VALUE) %>% as.numeric()
-outputfile <- params %>% filter(ARG_NAME == "OUTPUT_FILE")  %>% pull(VALUE)
-ts <- paste0("{ts '", lastyear - 2, "-01-01 00:00:00'}")
-ts_end <- paste0("{ts '", lastyear + 1, "-01-01 00:00:00'}") #kleiner dan eerste dag volgende jaar
+#// Import arguments
+##======================
+
+e <- try({
+  qcproduct <- params %>% filter(ARG_NAME == "PRODUCT") %>% pull(VALUE)
+  lastyear <- params %>% filter(ARG_NAME == "LAST_YEAR") %>% pull(VALUE) %>% as.numeric()
+  outputfile <- params %>% filter(ARG_NAME == "OUTPUT_FILE")  %>% pull(VALUE)
+  ts <- paste0("{ts '", lastyear - 2, "-01-01 00:00:00'}")
+  ts_end <- paste0("{ts '", lastyear + 1, "-01-01 00:00:00'}") #kleiner dan eerste dag volgende jaar
+})
+if (inherits(e, "try-error")) {
+  write_db_log(paste("Error reading arguments:", e), "E")
+  stop(e)
+}
+write_db_log("Argumenten gelezen, start inlezen data", "P", extra = " (kan eventjes duren)")
+
+
+#// Import data
+##================
 
 query <- paste0("
 select s.PRODUCT, s.SAMPLE_NUMBER, s.TEXT_ID, s.SAMPLE_TYPE, s.SAMPLE_NAME , bo.BATCH, bo.ORDER_NUMBER
@@ -50,10 +62,24 @@ and r.ENTRY is not null and s.SAMPLE_TYPE is not null and s.SAMPLE_TYPE <> 'DUP'
 " and s.PRODUCT = '", qcproduct, "'",
 " order by r.ANALYSIS, r.NAME, s.SAMPLE_NAME, bo.BATCH, bo.ORDER_NUMBER")
 
-alldata <- dbGetQuery(conn, query) %>% mutate(ROW = 1:n(), period = as.numeric(substring(ENTERED_ON,1,4)) - (lastyear-3))
+e <- try({
+  alldata <- dbGetQuery(conn, query) %>%
+    mutate(ROW = 1:n(),
+           period = as.numeric(substring(ENTERED_ON,1,4)) - (lastyear-3))
+})
+if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
+  if (nrow(e) == 0) {
+    msg = "Data bevat 0 rijen"
+  } else {
+    msg = "Probleem laden data"
+  }
+  write_db_log(paste(msg, e), "E")
+  stop(e)
+}
+
+write_db_log(paste("data records:", nrow(alldata)), "P")
 
 ### selecteer enkel de eerste data in een batch
-
 firstselect <- alldata %>%
   group_by(ANALYSIS, NAME, SAMPLE_NAME, BATCH) %>%
   summarise(KEPT_ROW = min(ROW))
@@ -77,137 +103,143 @@ select PRODUCT, ps.VERSION, ps.ANALYSIS, ps.COMPONENT, GRADE",
 
 productinfo <- dbGetQuery(conn, qry2)
 combis <- unique(firstdata$COMBI)
-combis <- "PHKCL_VOL_SP2000_V__pH.KCL.20__PH_BUFFER9_V_RF"
+
+write_db_log("Starting calculating statistics", "P")
 
 overzicht <- NULL
-for (i in combis) {
-  comb <- i
-  print(comb)
-  comps <- unlist(str_split(comb,pattern =  "__"))
-  analyse <- comps[1]
-  component <- comps[2]
-  qcsample <- comps[3]
-  prd <- productinfo %>% filter(PRODUCT == qcproduct, ANALYSIS == analyse, COMPONENT == component, GRADE == qcsample)
-  if (nrow(prd)) {
-    x_huidig <- prd[1, "C_CTR_X"]
-    sd_huidig <- prd[1, "C_CTR_SD"]
-    ref_x_huidig <- prd[1, "C_CERTIFIED_VALUE"]
-    ref_sd_huidig <- prd[1, "C_CERTIFIED_SD"]
-    qc_chart <- prd[1, "C_CTR_ADD"]
-
-    minlim <- x_huidig - 3 * sd_huidig
-    maxlim <- x_huidig + 3 * sd_huidig
-    detlim <- prd[1, "DET_LIMIT"]
-    is_pbl <- prd[1, "IS_PBL"]
-  } else {
-    x_huidig <- sd_huidig <- ref_x_huidig <- ref_sd_huidig <- qc_chart <- minlim <- maxlim <- is_pbl <- detlim <- NA
-  }
-
-  fdata <- firstdata %>%
-    filter(COMBI == comb) %>%
-    arrange(C_DATE_BATCHRUN) %>%
-    mutate(BATCHNR = 1:n(), VALUE = as.numeric(ENTRY))
-  table(fdata$period)
-
-  periods <- fdata$period
-  values1 <- fdata$VALUE[fdata$period == 1]
-  values2 <- fdata$VALUE[fdata$period == 2]
-  values3 <- fdata$VALUE[fdata$period == 3]
-  if(!is.na(minlim)){
-    values1 <- na.omit(values1[values1 >= minlim & values1 <= maxlim])
-    values2 <- na.omit(values2[values2 >= minlim & values2 <= maxlim])
-    values3 <- na.omit(values3[values3 >= minlim & values3 <= maxlim])
-  }
-  len1 <- length(values1)
-  len2 <- length(values2)
-  len3 <- length(values3)
-
-  do_tests <- TRUE
-  if (len3 >= 30) {
-    allvalues <- c(values2, values3)
-  } else if (len3 < 30) {
-    allvalues <- c(values2, values3)
-    if (length(allvalues) < 30) {
-      allvalues <- c(values1, values2, values3)
+e <- try({
+  for (i in combis) {
+    comb <- i
+    comps <- unlist(str_split(comb,pattern =  "__"))
+    analyse <- comps[1]
+    component <- comps[2]
+    qcsample <- comps[3]
+    prd <- productinfo %>% filter(PRODUCT == qcproduct, ANALYSIS == analyse,
+                                  COMPONENT == component, GRADE == qcsample)
+    if (nrow(prd)) {
+      x_huidig <- prd[1, "C_CTR_X"]
+      sd_huidig <- prd[1, "C_CTR_SD"]
+      ref_x_huidig <- prd[1, "C_CERTIFIED_VALUE"]
+      ref_sd_huidig <- prd[1, "C_CERTIFIED_SD"]
+      qc_chart <- prd[1, "C_CTR_ADD"]
+      minlim <- x_huidig - 3 * sd_huidig
+      maxlim <- x_huidig + 3 * sd_huidig
+      detlim <- prd[1, "DET_LIMIT"]
+      is_pbl <- prd[1, "IS_PBL"]
+    } else {
+      x_huidig <- sd_huidig <- ref_x_huidig <- ref_sd_huidig <- qc_chart <- minlim <- maxlim <- is_pbl <- detlim <- NA
     }
-    if (length(allvalues) < 30) {
-      do_tests <- FALSE
+
+    fdata <- firstdata %>%
+      filter(COMBI == comb) %>%
+      arrange(C_DATE_BATCHRUN) %>%
+      mutate(BATCHNR = row_number(), VALUE = as.numeric(ENTRY))
+    table(fdata$period)
+    message(comb, " records: ", nrow(fdata))
+
+    periods <- fdata$period
+    values1 <- fdata$VALUE[fdata$period == 1]
+    values2 <- fdata$VALUE[fdata$period == 2]
+    values3 <- fdata$VALUE[fdata$period == 3]
+    if(!is.na(minlim)){
+      values1 <- na.omit(values1[values1 >= minlim & values1 <= maxlim])
+      values2 <- na.omit(values2[values2 >= minlim & values2 <= maxlim])
+      values3 <- na.omit(values3[values3 >= minlim & values3 <= maxlim])
     }
+    len1 <- length(values1)
+    len2 <- length(values2)
+    len3 <- length(values3)
+
+    do_tests <- TRUE
+    if (len3 >= 30) {
+      allvalues <- c(values2, values3)
+    } else if (len3 < 30) {
+      allvalues <- c(values2, values3)
+      if (length(allvalues) < 30) {
+        allvalues <- c(values1, values2, values3)
+      }
+      if (length(allvalues) < 30) {
+        do_tests <- FALSE
+      }
+      lenall <- length(allvalues)
+    }
+
     lenall <- length(allvalues)
+    split <- lenall %/% 2
+    valset1 <- allvalues[1:split]
+    valset2 <- allvalues[(split+1):lenall]
+    n1 <- length(valset1)
+    n2 <- length(valset2)
+    m1 <- mean(valset1)
+    m2 <- mean(valset2)
+    sd1 <- sd(valset1)
+    sd2 <- sd(valset2)
+
+    if (do_tests) {
+      tobj <- t.test(valset1, valset2)
+      vobj <- var.test(valset1, valset2)
+    } else {
+      tobj <- list(estimate = NA, p.value = NA)
+      vobj <- list(estimate = NA, p.value = NA)
+    }
+    t_test_p <- tobj$p.value
+    var_test_p <- vobj$p.value
+    if (is.na(is_pbl)) {
+      x_voorstel <- sd_voorstel <-  lcl_voorstel <-  ucl_voorstel <-  ucl_voorstel <-  NA
+    }
+    else if (is_pbl) {
+      x_voorstel <- 0
+      sd_voorstel <- as.numeric(detlim)/2
+      lcl_voorstel <- x_voorstel - 2 * sd_voorstel
+      ucl_voorstel <-  x_voorstel + 2 * sd_voorstel
+
+    } else {
+      x_voorstel <- ifelse(t_test_p < alpha & !is.na(t_test_p), m2, x_huidig)
+      sd_voorstel <- ifelse(var_test_p < alpha & !is.na(var_test_p), sd2, sd_huidig)
+      lcl_voorstel <- x_voorstel - 3 * sd_voorstel
+      ucl_voorstel <-  x_voorstel + 3 * sd_voorstel
+    }
+
+    cs <- unlist(str_split(comb, pattern = "__"))
+
+    rv <- data.frame(product = qcproduct,
+                     referentie = cs[3],
+                     analyse = cs[1],
+                     component = cs[2],
+                     ref_x_huidig = ref_x_huidig,
+                     ref_sd_huidig = ref_sd_huidig,
+                     x_huidig = x_huidig,
+                     sd_huidig = sd_huidig,
+                     n_laatst = len3,
+                     x_laatst = mean(values3),
+                     sd_laatst = sd(values3),
+                     n_tot = n1 + n2,
+                     n_set1 = n1,
+                     n_set2 = n2,
+                     x_set1 = m1,
+                     x_set2 = m2,
+                     sd_set1 = sd1,
+                     sd_set2 = sd2,
+                     t_test_p = t_test_p,
+                     var_test_p = var_test_p,
+                     significant = paste0(ifelse(t_test_p < alpha, "*", "_"),
+                                          ifelse(var_test_p < alpha, "*", "_")),
+                     is_pbl = is_pbl,
+                     qc_chart = qc_chart,
+                     x_voorstel = x_voorstel,
+                     sd_voorstel = sd_voorstel,
+                     lcl_voorstel = lcl_voorstel,
+                     ucl_voorstel = ucl_voorstel
+                    )
+    overzicht <- bind_rows(overzicht, rv)
   }
+})
+write_db_log("Ready calculating statistics", "P")
 
-  lenall <- length(allvalues)
-  split <- lenall %/% 2
-  valset1 <- allvalues[1:split]
-  valset2 <- allvalues[(split+1):lenall]
-  n1 <- length(valset1)
-  n2 <- length(valset2)
-  m1 <- mean(valset1)
-  m2 <- mean(valset2)
-  sd1 <- sd(valset1)
-  sd2 <- sd(valset2)
-
-  if (do_tests) {
-    tobj <- t.test(valset1, valset2)
-    vobj <- var.test(valset1, valset2)
-  } else {
-    tobj <- list(estimate = NA, p.value = NA)
-    vobj <- list(estimate = NA, p.value = NA)
-  }
-  t_test_p <- tobj$p.value
-  var_test_p <- vobj$p.value
-  if (is.na(is_pbl)) {
-    x_voorstel <- sd_voorstel <-  lcl_voorstel <-  ucl_voorstel <-  ucl_voorstel <-  NA
-  }
-  else if (is_pbl) {
-    x_voorstel <- 0
-    sd_voorstel <- as.numeric(detlim)/2
-    lcl_voorstel <- x_voorstel - 2 * sd_voorstel
-    ucl_voorstel <-  x_voorstel + 2 * sd_voorstel
-
-  } else {
-    x_voorstel <- ifelse(t_test_p < alpha & !is.na(t_test_p), m2, x_huidig)
-    sd_voorstel <- ifelse(var_test_p < alpha & !is.na(var_test_p), sd2, sd_huidig)
-    lcl_voorstel <- x_voorstel - 3 * sd_voorstel
-    ucl_voorstel <-  x_voorstel + 3 * sd_voorstel
-  }
-
-
-  cs <- unlist(str_split(comb, pattern = "__"))
-
-  rv <- data.frame(product = qcproduct,
-                   referentie = cs[3],
-                   analyse = cs[1],
-                   component = cs[2],
-                   ref_x_huidig = ref_x_huidig,
-                   ref_sd_huidig = ref_sd_huidig,
-                   x_huidig = x_huidig,
-                   sd_huidig = sd_huidig,
-                   n_laatst = len3,
-                   x_laatst = mean(values3),
-                   sd_laatst = sd(values3),
-                   n_tot = n1 + n2,
-                   n_set1 = n1,
-                   n_set2 = n2,
-                   x_set1 = m1,
-                   x_set2 = m2,
-                   sd_set1 = sd1,
-                   sd_set2 = sd2,
-                   t_test_p = t_test_p,
-                   var_test_p = var_test_p,
-                   significant = paste0(ifelse(t_test_p < alpha, "*", "_"), ifelse(var_test_p < alpha, "*", "_")),
-                   is_pbl = is_pbl,
-                   qc_chart = qc_chart,
-                   x_voorstel = x_voorstel,
-                   sd_voorstel = sd_voorstel,
-                   lcl_voorstel = lcl_voorstel,
-                   ucl_voorstel = ucl_voorstel
-                   )
-
-  overzicht <- bind_rows(overzicht, rv)
+try(e <- write_excel_csv2(overzicht, file = outputfile))
+if (inherits(e, "try-error")) {
+  write_db_log(paste("error writing file:", e), "E")
+  stop(e)
 }
-
-write_excel_csv2(overzicht, file = outputfile)
-
-
+write_db_log("Script afgerond", "C")
 

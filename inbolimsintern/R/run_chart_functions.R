@@ -110,11 +110,10 @@ get_run_chart_data <- function(conn, qry) {
 #' @export
 #'
 html_run_chart <- function(plotdata, project, path, split_fig = TRUE, chart_header = "", ...) {
-  datetxt <- datetime_text()
   file0 <- paste0(path, "_", chart_header, "_fig_combined.png")
   file1 <- paste0(path, "_", chart_header, "_fig_split.png")
-  fileshort0 <- substring(file0, max(gregexpr("\\\\", file0)[[1]]) + 1)
-  fileshort1 <- substring(file1, max(gregexpr("\\\\", file1)[[1]]) + 1)
+  fileshort0 <- basename(file0)
+  fileshort1 <- basename(file1)
 
   plotdata <- plotdata %>%
     mutate(anacomp = interaction(ANALYSIS, NAME)) %>%
@@ -146,6 +145,71 @@ html_run_chart <- function(plotdata, project, path, split_fig = TRUE, chart_head
          "<h2>Gecombineerd</h2>\n<IMG SRC=\"",fileshort0,"\"><p>\n",
          "<h2>Gesplitst</h2>\n<IMG SRC=\"",fileshort1,"\"><p>\n")
 }
+
+
+############################################ Make sure you have this package installed: install.packages("base64enc")
+
+' Generate and Embed Run Charts into an HTML String
+#'
+#' @param plotdata A data frame with the necessary columns for plotting.
+#' @param project A character string for the plot title.
+#' @param chart_header A character string for the HTML header.
+#' @param ... Not used.
+#'
+#' @return A character string containing a self-contained HTML snippet with embedded charts.
+#' @export
+html_run_chart_embedded <- function(plotdata, project, split_fig = TRUE, chart_header = "", ...) {
+  # This function no longer needs the 'path' argument, as files are not saved permanently.
+
+  # --- Plotting logic (unchanged) ---
+  plotdata <- plotdata %>%
+    mutate(anacomp = interaction(ANALYSIS, NAME)) %>%
+    arrange(TEXT_ID)
+
+  ulabs <- distinct(plotdata[c('TEXT_ID_NUM', 'TEXT_ID')])
+  # Assuming run_chart_breaks is a function you have defined elsewhere
+  # breaks <- run_chart_breaks(n = 40, numeric_labels = ulabs$TEXT_ID_NUM, label_values = ulabs$TEXT_ID)
+  p <- ggplot(plotdata,
+              aes(x = TEXT_ID_NUM, y = ENTRY, color = anacomp)) +
+    geom_point(size = 1, shape = 1) + geom_path() +
+    # scale_x_continuous(breaks = breaks[['value']], labels = breaks[["label"]], name = "") +
+    scale_color_discrete(name = '') +
+    ggtitle(project) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))
+
+  # --- Image Generation and Embedding (MODIFIED PART) ---
+
+  # 1. Create the first plot (combined)
+  p0 <- p + theme(legend.position = "bottom")
+
+  #   a. Save p0 to a temporary file
+  temp_file_0 <- tempfile(fileext = ".png")
+  ggsave(p0, filename = temp_file_0, width = 7, height = 5, dpi = 300)
+
+  #   b. Encode the temp file into a Base64 data URI string
+  uri_0 <- base64enc::dataURI	(file = temp_file_0, mime = "image/png")
+
+
+  # 2. Create the second plot (split)
+  p1 <- p + facet_wrap(~anacomp, ncol = 1, scales = "free_y") +
+    theme(legend.position = 'none')
+
+  #   a. Save p1 to a different temporary file
+  temp_file_1 <- tempfile(fileext = ".png")
+  ggsave(p1, filename = temp_file_1, width = 7, height = 5, dpi = 300)
+
+  #   b. Encode this second temp file
+  uri_1 <- base64enc::dataURI(file = temp_file_1, mime = "image/png")
+
+
+  # 3. Create the final HTML string with the embedded images
+  paste0("<h1>", chart_header, "</h1>\n",
+         "<h2>Gecombineerd</h2>\n<img src=\"", uri_0, "\"><p>\n",
+         "<h2>Gesplitst</h2>\n<img src=\"", uri_1, "\"><p>\n")
+}
+
+
+
 
 ##########################################
 

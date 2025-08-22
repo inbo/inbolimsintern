@@ -1,44 +1,47 @@
-#TLC - Toon Duplo Resultaten van het hele gekozen lopende jaar
+###############################################################
+#TLC - Toon Duplo Resultaten van het hele gekozen lopende jaar (of periode)
+###############################################################
 
-### R libraries
+#// setup environment
+##=====================
 
-library(inbolimsintern)
-library(DBI)
 library(tidyverse)
-library(magrittr)
-
-### Logfile
-logfile <- logfile_start(prefix = "TLC_Duplo_Overview")
-writeLines(con = logfile, paste0("TLC_Duplo_Overview\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
-
-### LIMS argumenten
-call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721 6572 9733
+library(DBI)
+library(inbolimsintern)
 digits <- 5
-try({
-  args <- inbolimsintern::prepare_session(call_id)
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-}, outFile = logfile)
+args <- commandArgs(trailingOnly = TRUE)
+setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "10045", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+invisible(list2env(setup, envir = .GlobalEnv))
 
-writeLines(con = logfile, "params\n------\n")
-cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
+if (inherits(setup, "try-error")) {
+  write_db_log(paste("Problem setting up R script", setup), "E")
+  stop("probleem bij setup script")
+} else {
+  write_db_log("R session setup finished", "P")
+}
 
-try({
+#// Import arguments
+##======================
+
+e <- try({
   lab  <- try(filter(params, ARG_NAME == "LAB") %>% pull(VALUE))
   csvpath <- try(filter(params, ARG_NAME == "CSV_FILE") %>% pull(VALUE))
   year <- try(filter(params, ARG_NAME == "YEAR") %>% pull(VALUE))
-}, outFile = logfile)
+  firstdate <- params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
+  lastdate  <-  params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
+  lab       <- params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
+})
+if (inherits(e, "try-error")) {
+  write_db_log(paste("error retrieving params:", e), "E")
+  stop(e)
+} else {
+  write_db_log("parameters ingelezen, start laden data", "P", extra = " (kan eventjes duren)")
+}
 
-## Data
 
-#prefix = paste0(as.numeric(year) - 2000, "-%")
-#dupprefix = paste0("D", as.numeric(year) - 2000, "-%")
-#dupprefix = "D"
-#labprefix = paste0("%", lab, "%")
-firstdate <- params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
-lastdate  <-  params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
-lab       <- params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
-outtype   <- params %>% filter(ARG_NAME == 'FILE_SEP') %>% pull(VALUE)
+#// Import data
+##=============
 
 qry <- paste0(
 "select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
@@ -57,55 +60,79 @@ qry <- paste0(
 " order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
 )
 
-cat(qry, file =  logfile, append = TRUE, sep = "\n")
+e <- try({
+  df_all <- dbGetQuery(conn, qry)
+  df_all <- df_all %>%
+    mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
+           waarde_ruw = as.numeric(value))
+})
+if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
+  if (nrow(e) == 0) {
+    msg = "Data bevat 0 rijen"
+  } else {
+    msg = "Probleem laden data"
+  }
+  write_db_log(paste(msg, e), "E")
+  stop(e)
+} else {
+  write_db_log(paste("data records:", nrow(df_all)), "P")
+}
 
-df_all <- dbGetQuery(conn, qry)
-df_all <- df_all %>%
-  mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
-         waarde_ruw = as.numeric(value))
-cat("aantal rijen in data: ", nrow(df_all), '\n', file = logfile, sep = "\n")
+
+#// Process the data
+
+e <- try({
+  df_pivot_orig <- df_all %>%
+    group_by(dupnr, sampletype, analysis, name, repli ) %>%
+    summarise(waarde = mean(waarde_ruw, na.rm = TRUE),
+              N = n()) %>%
+    arrange(analysis, name, dupnr, repli) %>%
+    pivot_wider(id_cols = c(dupnr, analysis, name, repli),
+                names_from = sampletype,
+                values_from = waarde) %>%
+    mutate(ratio = DUP / SAMP,
+           afwijking = DUP - SAMP,
+           gemiddelde = (DUP + SAMP) / 2,
+           relatief = abs(afwijking) / gemiddelde * 100) %>%
+    filter(!is.na(DUP) & !is.na(SAMP))
+
+  df_pivot_orig <- df_pivot_orig %>%
+    inner_join(df_all %>%
+                 select(textid, unit, blindparent, dupnr, date, analysis, name, repli, sampletype) %>%
+                 filter(sampletype == "SAMP"),
+               by = c('dupnr', 'analysis', 'name', 'repli')) %>%
+    inner_join(df_all %>%
+                 select(textid_dup = textid, dupnr, date_dup = date, analysis, name, repli, sampletype_dup = sampletype) %>%
+                 filter(sampletype_dup == "DUP"),
+               by = c('dupnr', 'analysis', 'name', 'repli'), multiple = "all") %>%
+    transmute(dupnr, repli, analysis, name, unit,  textid, textid_dup, blindparent, date, date_dup,
+              meting=round(SAMP,digits), duplometing=round(DUP, digits),
+              gemiddelde=round(gemiddelde, digits), ratio = round(ratio, digits),
+              afwijking = round(afwijking, digits), relatief = round(relatief, digits)
+    )
+
+  #onderzoeken waarom hier rijen bijkomen
+  df_pivot <- df_pivot_orig %>%
+    ungroup() %>%
+    mutate(rownr = 1:n()) %>%
+    inner_join(df_all %>%
+                 select(project, textid, product_grade, matrix) %>%
+                 group_by(textid) %>%
+                 summarise(project = paste(unique(project), collapse = ","),
+                           product_grade = paste(unique(product_grade), collapse = ","),
+                           matrix = paste(unique(matrix), collapse = ",")),
+               join_by(textid == textid))
+})
+if (inherits(e, "try-error")) {
+  write_db_log(paste("Error processing data", e), "E")
+  stop(e)
+} else {
+  write_db_log(paste("Data processed:", nrow(df_pivot), "records"), "P")
+}
 
 
-df_pivot_orig <- df_all %>%
-  group_by(dupnr, sampletype, analysis, name, repli ) %>%
-  summarise(waarde = mean(waarde_ruw, na.rm = TRUE),
-            N = n()) %>%
-  arrange(analysis, name, dupnr, repli) %>%
-  pivot_wider(id_cols = c(dupnr, analysis, name, repli),
-              names_from = sampletype,
-              values_from = waarde) %>%
-  mutate(ratio = DUP / SAMP,
-         afwijking = DUP - SAMP,
-         gemiddelde = (DUP + SAMP) / 2,
-         relatief = abs(afwijking) / gemiddelde * 100) %>%
-  filter(!is.na(DUP) & !is.na(SAMP))
-
-df_pivot_orig <- df_pivot_orig %>%
-  inner_join(df_all %>%
-               select(textid, unit, blindparent, dupnr, date, analysis, name, repli, sampletype) %>%
-               filter(sampletype == "SAMP"),
-             by = c('dupnr', 'analysis', 'name', 'repli')) %>%
-  inner_join(df_all %>%
-               select(textid_dup = textid, dupnr, date_dup = date, analysis, name, repli, sampletype_dup = sampletype) %>%
-               filter(sampletype_dup == "DUP"),
-             by = c('dupnr', 'analysis', 'name', 'repli'), multiple = "all") %>%
-  transmute(dupnr, repli, analysis, name, unit,  textid, textid_dup, blindparent, date, date_dup,
-         meting=round(SAMP,digits), duplometing=round(DUP, digits),
-         gemiddelde=round(gemiddelde, digits), ratio = round(ratio, digits),
-         afwijking = round(afwijking, digits), relatief = round(relatief, digits)
-         )
-
-#onderzoekn waarom hier rijen bijkomen
-df_pivot <- df_pivot_orig %>%
-  ungroup() %>%
-  mutate(rownr = 1:n()) %>%
-  inner_join(df_all %>%
-               select(project, textid, product_grade, matrix) %>%
-               group_by(textid) %>%
-               summarise(project = paste(unique(project), collapse = ","),
-                         product_grade = paste(unique(product_grade), collapse = ","),
-                         matrix = paste(unique(matrix), collapse = ",")),
-             join_by(textid == textid))
+#// Calculate summary statistics
+##===============================
 
 #bereken samenvattende statistieken en voeg die bij de dataset
 df_cvsd <- df_pivot %>%
@@ -117,6 +144,8 @@ df_cvsd <- df_pivot %>%
             textid = 'ZZZZZZ', textid_dup = 'D-ZZZZZZ-1', blindparent = NA, date_dup = NA,
             meting = NA, duplometing = NA, gemiddelde=NA, ratio=NA, afwijking=NA, relatief=NA,
             sd = SD, cv = CV)
+
+write_db_log("Samenvattende statistiekeb berekend", "P")
 
 df_pivot_incl_smry <- bind_rows(df_pivot, df_cvsd) %>%
   arrange(analysis, name, textid) %>%
@@ -130,23 +159,15 @@ df_pivot_incl_smry <- bind_rows(df_pivot, df_cvsd) %>%
             "Relatief verschil" = relatief,
             SD = sd, CV = cv)
 
-cat("aantal paarsgewijze testen: ", nrow(df_pivot_incl_smry), '\n', file = logfile, sep = "\n")
 
-Sys.sleep(2)
-
-if (outtype == "FULL") {
-  cat("writing csv", sep = "\n", file = logfile, append = TRUE)
-  a <- try(write_excel_csv2(df_pivot_incl_smry, file = csvpath, col_names = TRUE, na = ''))
-  cat(class(a), sep = "\n", file = logfile, append = TRUE)
+e <- try(write_excel_csv2(df_pivot_incl_smry, file = csvpath, col_names = TRUE, na = ''))
+if (inherits(e, "try-error")) {
+  write_db_log(e, "E")
+  stop(e)
 } else {
-  df_pivot_incl_smry$COMBI <-  interaction(df_pivot_incl_smry$analysis, df_pivot_incl_smry$name, sep = "_")
-  for (i in unique(df_pivot_incl_smry$COMBI)) {
-    partpath <- substring(csvpath, 1, nchar(csvpath) - 4)
-    partpath <- paste0(partpath, "_", i, ".csv")
-    write_excel_csv2(df_pivot_incl_smry %>% filter(COMBI == i) %>% select(-COMBI), file = partpath, col_names = TRUE, na = '')
-  }
+ write_db_log("File weggeschreven", "C")
 }
-Sys.sleep(2)
+
 
 
 
