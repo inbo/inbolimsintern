@@ -149,7 +149,7 @@ html_run_chart <- function(plotdata, project, path, split_fig = TRUE, chart_head
 
 ############################################ Make sure you have this package installed: install.packages("base64enc")
 
-' Generate and Embed Run Charts into an HTML String
+#' Generate and Embed Run Charts into an HTML String
 #'
 #' @param plotdata A data frame with the necessary columns for plotting.
 #' @param project A character string for the plot title.
