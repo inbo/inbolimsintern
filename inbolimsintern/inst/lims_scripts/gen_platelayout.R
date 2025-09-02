@@ -2,47 +2,74 @@
 # PLAATLAYOUT GENEREREN VOR CRYSTAL REPORT
 ############################################################################
 
-### >>> Configure R session
 
-library(dplyr)
-library(tidyr)
+#// setup environment
+##=====================
+
+library(tidyverse)
 library(inbolimsintern)
 library(DBI)
+args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "10083", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+invisible(list2env(setup, envir = .GlobalEnv))
 
-logfile <- logfile_start(prefix = "PLATELAYOUT")
-call_id <- 0 #630 505 515 516 518 8109
-
-try({
-  args <- inbolimsintern::prepare_session(call_id)
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-}, outFile = logfile)
+if (inherits(setup, "try-error")) {
+  write_db_log(paste("Problem setting up R script", setup), "E")
+  stop("probleem bij setup script:", e)
+} else {
+  write_db_log("R session setup finished", "P")
+}
 
 ### >>> Data inlezen en brondata klaarzetten
 
-try({
-  DNArunID <- filter(params, ARG_NAME == "DNA_RUN_ID") %>% pull(VALUE)
-}, outFile = logfile)
+e <- try({
+  DNArunID <- dplyr::filter(params, ARG_NAME == "DNA_RUN_ID") %>% pull(VALUE)
+})
+if (inherits(e, 'try-error')) {
+  write_db_log(paste("Probleem bij inlezen DNA run ID", e ), "E")
+  stop(e)
+}
 
-### >>> Brondata klaarzetten
-
-try({
+e <- try({
   dfDesign <- inbolimsintern::plate_read_dna_run(conn, DNArunID)
-}, outFile = logfile)
-
+})
+if (inherits(e, 'try-error')) {
+  write_db_log(paste("Probleem bij aanmaken dataset: ", e ), "E")
+  stop(e)
+} else {
+  if (nrow(dfDesign) == 0) {
+    write_db_log(paste("Dataset ingelezen: geen records gevonden"), "E")
+    stop("Geen data gevonden")
+  } else {
+    write_db_log(paste("Dataset ingelezen:", nrow(dfDesign), "records" ), "P")
+  }
+}
 
 ### >>> Resultatendataset aanmaken
-try({
+e <- try({
   dfResult <- inbolimsintern::plate_create_report(dfDesign, Capilar = LETTERS[1:8], Lane = 1:12)
-}, outFile = logfile)
+})
+if (inherits(e, 'try-error')) {
+  write_db_log(paste("Probleem bij aanmaken resultatendataset: ", e ), "E")
+  stop(e)
+} else {
+  if (nrow(dfResult) == 0) {
+    write_db_log(paste("Geen resultaten kunnen aanmaken"), "E")
+    stop("Geen resultaten kunnen bouwen")
+  } else {
+    write_db_log(paste("Resultatendata aangemaakt:", nrow(dfDesign), "records" ), "P")
+  }
+}
 
 ### >>> Invullen Resultatendataset
-try({
+e <- try({
   DBI::dbGetQuery(conn, "delete from C_DNA_RUN_REPORT_RESULTS")
   check <- DBI::dbWriteTable(conn, "C_DNA_RUN_REPORT_RESULTS", dfResult, append = TRUE)
-  print(check)
-  write.csv2(file = "platereport.csv", dfResult)
-}, outFile = logfile)
-
-close(logfile)
+  write.csv2(file = paste0("platereport_run_", DNArunID, "_callid_",call_id,".csv"), dfResult)
+})
+if (inherits(e, 'try-error')) {
+  write_db_log(paste("Probleem bij invullen resultatendataset in de database: ", e ), "E")
+  stop(e)
+}
+write_db_log("R routine succesvol afgerond", "C")
 
