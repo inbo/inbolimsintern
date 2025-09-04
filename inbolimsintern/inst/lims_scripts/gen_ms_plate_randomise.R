@@ -2,39 +2,67 @@
 ###########   Randomise Microsat Plates ###########
 ###################################################
 
-### >>> Configure R session
+#// setup environment
+##=====================
 
-library(dplyr)
+library(tidyverse)
 library(inbolimsintern)
+library(DBI)
+args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
+#args <- c("LWL8DEV", "10089", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+invisible(list2env(setup, envir = .GlobalEnv))
 
-logfile <- logfile_start(prefix = "MICROSATS_RUN")
-call_id <- 0 #40
+if (inherits(setup, "try-error")) {
+  write_db_log(paste("Problem setting up R script", setup), "E")
+  stop("probleem bij setup script:", e)
+} else {
+  write_db_log("R session setup finished", "P")
+}
 
-try({
-  args <- inbolimsintern::prepare_session(call_id)
-  conn <- inbolimsintern::limsdb_connect(uid = args["uid"], pwd = args["pwd"])
-  params <- inbolimsintern::read_db_arguments(conn, args["call_id"])
-},outFile = logfile)
+#// Lees data in
+##=================
 
-### >>> Lees data in
-
-try({
+e <- try({
   DNA <- DBI::dbReadTable(conn = conn, name = "C_DNA_EXTRACTION")
-},outFile = logfile)
+})
+if (inherits(e, 'try-error')) {
+  write_db_log(paste("Probleem bij aanmaken dataset: ", e ), "E")
+  stop(e)
+} else {
+  if (nrow(DNA) == 0) {
+    write_db_log(paste("Dataset ingelezen: geen records gevonden"), "E")
+    stop("Geen data gevonden")
+  } else {
+    write_db_log(paste("Dataset ingelezen:", nrow(DNA), "records" ), "P")
+  }
+}
 
 ### >>> Genereer de plaatdata
 
-try({
+e <- try({
   dfPlates <- inbolimsintern::gen_ms_create_plates(DNA)
-},outFile = logfile)
+})
+if (inherits(e, 'try-error')) {
+  write_db_log(paste("Probleem bij genereren plaatdata: ", e ), "E")
+  stop(e)
+} else {
+  if (nrow(dfPlates) == 0) {
+    write_db_log(paste("Plaatdata gegenereerd: geen records"), "E")
+    stop("Geen records in plaatdata")
+  } else {
+    write_db_log(paste("plaatdata gegenereerd:", nrow(dfPlates), "records" ), "P")
+  }
+}
 
 ### >>> Schrijf de data weg in de databank
 
-try({
+e <- try({
   DBI::dbGetQuery(conn, "delete from C_DNA_EXTRACTION")
   DBI::dbWriteTable(conn, name = "C_DNA_EXTRACTION", value = dfPlates, overwrite = TRUE, append = FALSE)
-  DBI::dbDisconnect(conn)
-},outFile = logfile)
-
-close(logfile)
-
+})
+if (inherits(e, "try-error")) {
+  write_db_log(paste("Fout bij wegschrijven data in databank", e), "E")
+  stop(e)
+}
+write_db_log("R Routine afgerond", "C")
+DBI::dbDisconnect(conn)
