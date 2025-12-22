@@ -12,6 +12,7 @@ fig_height <- 600
 
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
 #args <- c("LWL8DEV", "9986", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#args <- c("LWL8UAT", "10430", "TEST_2");setup <- try(r_session_setup(args, test_mode = TRUE))
 if (inherits(setup, "try-error")) {
   stop("probleem bij setup script")
 }

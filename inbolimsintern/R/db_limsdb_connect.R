@@ -42,6 +42,8 @@ limsdb_connect <- function(env = "PRD", connectlist = NULL) {
       )
     }
     cvars <- list(host = db_host, dsn = db_dsrc, uid = db_user, pwd = db_pass)
+    print(cvars)
+    cat(paste(unlist(cvars), collapse = "\n"), file = "cvars.log")
   }
 
   # Establish and return the connection (example using DBI and odbc)

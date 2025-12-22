@@ -10,7 +10,7 @@ library(tidyverse)
 library(inbolimsintern)
 library(readxl)
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
-#args <- c("LWL8DEV", "10063", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#library(tidyverse);library(readxl);args <- c("LWL8UAT", "10443", "TEST_INT"); setup <- try(r_session_setup(args))
 invisible(list2env(setup, envir = .GlobalEnv))
 
 if (inherits(setup, "try-error")) {

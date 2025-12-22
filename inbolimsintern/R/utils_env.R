@@ -7,6 +7,7 @@
 #' @return Invisibly returns `TRUE` on success or `FALSE` on failure.
 load_encrypted_renviron <- function(path) {
 
+  cat(as.character(Sys.time()),"\n", file = "decoding_log.log", append = FALSE)
   # Define potential paths for the encrypted file
   paths_to_check <- c(
     file.path(getwd(), ".Renviron.enc"),
@@ -15,6 +16,7 @@ load_encrypted_renviron <- function(path) {
     file.path("D:", "LWL8UAT", "Client", ".Renviron.enc"), #temporary location
     file.path("D:", "LWL8PRD", "Client", ".Renviron.enc")  #temporary location
   )
+  cat(paths_to_check, file = "decoding_log.log", append = TRUE)
   if (!missing(path)) {
     paths_to_check <- c(path, paths_to_check)
   }
@@ -27,6 +29,7 @@ load_encrypted_renviron <- function(path) {
       break
     }
   }
+  cat(found_path,"\n", file = "decoding_log.log", append = TRUE)
 
   if (is.null(found_path)) {
     # It's not an error if the file doesn't exist; just means we can't load it.
@@ -46,6 +49,7 @@ load_encrypted_renviron <- function(path) {
   if (inherits(e, "try-error")) {
     stop(e)
   }
+  cat(decoded_content, file = "decoding_log.log", append = TRUE)
 
   e <- try({
     temp_file <- tempfile()
