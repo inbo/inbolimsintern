@@ -26,6 +26,7 @@ cat(params$VALUE, sep = "\n", file = logfile, append = TRUE)
 
 qcproduct <- params %>% filter(ARG_NAME == "PRODUCT") %>% pull(VALUE)
 lastyear <- params %>% filter(ARG_NAME == "LAST_YEAR") %>% pull(VALUE) %>% as.numeric()
+
 outputfile <- params %>% filter(ARG_NAME == "OUTPUT_FILE")  %>% pull(VALUE)
 ts <- paste0("{ts '", lastyear - 2, "-01-01 00:00:00'}")
 ts_end <- paste0("{ts '", lastyear + 1, "-01-01 00:00:00'}") #kleiner dan eerste dag volgende jaar
@@ -64,6 +65,7 @@ firstdata <- alldata %>%
 #de laatste productversie in de data wordt gekozen als basislimieten
 prodversion <- max(firstdata$VERSION)
 
+
 qry2 <- paste0("
 select PRODUCT, ps.VERSION, ps.ANALYSIS, ps.COMPONENT, GRADE",
       " , C_CERTIFIED_VALUE, C_CERTIFIED_SD",
@@ -77,7 +79,7 @@ select PRODUCT, ps.VERSION, ps.ANALYSIS, ps.COMPONENT, GRADE",
 
 productinfo <- dbGetQuery(conn, qry2)
 combis <- unique(firstdata$COMBI)
-combis <- "PHKCL_VOL_SP2000_V__pH.KCL.20__PH_BUFFER9_V_RF"
+#combis <- "PHKCL_VOL_SP2000_V__pH.KCL.20__PH_BUFFER9_V_RF"
 
 overzicht <- NULL
 for (i in combis) {

@@ -113,6 +113,9 @@ for (i in 1:nrow(combis)) {
   plot_widgets[[comb]][["out3s"]] <- datatable(htmldata[['out3s']])
 }
 
+writeLines(con = logfile, "\nNumber of Widgets\n------\n")
+cat(length(plot_widgets), '\n', file = logfile, append = TRUE)
+
 ###############################################################################
 ### CREATE HTML
 ###############################################################################
@@ -172,6 +175,8 @@ for (comb in names(plot_widgets)) {
 # Wrap TOC
 toc_widget <- tags$ul(toc_items)
 
+cat("Start assembling layout", file = logfile, append = TRUE)
+
 # Assemble full layout
 layout <- tagList(
   tags$div(
@@ -209,6 +214,8 @@ layout <- tagList(
 output <- htmlwidgets::prependContent(placeholder, layout)
 #htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
 save_widgets_report(output, filename = htmlfile)
+
+cat('Html file created\n', file = logfile, append = TRUE)
 
 ### html tonena
 shell.exec(htmlfile)
