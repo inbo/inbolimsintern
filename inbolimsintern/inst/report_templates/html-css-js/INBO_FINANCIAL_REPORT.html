@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapportage besteed budget</title>
+    <style>
+        /* --- CSS STYLES --- */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; color: #333; padding: 20px; }
+        h1 { text-align: center; color: #444; }
+        
+        /* Flexbox for the header rows */
+        .row-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 12px 15px; border-bottom: 1px solid rgba(0,0,0,0.05); user-select: none; transition: background 0.2s; }
+        
+        .row-info { flex-grow: 1; font-weight: 600; min-width: 200px; }
+        
+        /* Metrics Container - Adjusted for 3 columns */
+        .row-metrics { display: flex; gap: 15px; font-family: 'Consolas', monospace; font-size: 0.95rem; }
+        
+        .metric-box { min-width: 110px; text-align: right; }
+        .metric-label { font-size: 0.7rem; color: #666; display: block; }
+        .metric-val { font-weight: bold; }
+
+        /* Colors & Indentation */
+        .group-customer { background-color: #ffffff; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-radius: 5px; overflow: hidden; }
+        .header-customer { background-color: #2c3e50; color: white; }
+        .header-customer .metric-label { color: #ccc; }
+        
+        .container-contract { padding-left: 0; display: none; }
+        .header-contract { background-color: #ecf0f1; border-left: 5px solid #3498db; color: #2c3e50; }
+        .header-contract:hover { background-color: #e0e6e8; }
+        
+        .container-project { padding-left: 0; display: none; }
+        .header-project { background-color: #fff; border-left: 5px solid #2ecc71; padding-left: 25px; }
+        .header-project:hover { background-color: #f9f9f9; }
+        
+        .container-analysis { display: none; padding: 10px 20px 20px 20px; background-color: #fff; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 5px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #555; }
+        td.num { text-align: right; font-family: 'Consolas', monospace; }
+
+        .arrow::before { content: '►'; display: inline-block; margin-right: 10px; font-size: 0.8rem; transition: transform 0.2s; }
+        .expanded > .row-header .arrow::before { transform: rotate(90deg); }
+        .expanded > div { display: block; }
+    </style>
+</head>
+<body>
+
+    <h1>Rapportage besteed budget</h1>
+    <div id="report-container"></div>
+
+<script>
+    // ---------------------------------------------------------
+    // 1. DATA INJECTION POINT
+    // ---------------------------------------------------------
+    const rawData = {{JSON_DATA_PLACEHOLDER}};
+
+    // ---------------------------------------------------------
+    // 2. DATA PROCESSING LOGIC
+    // ---------------------------------------------------------
+    const formatMoney = (num) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+    };
+
+    function processData(data) {
+        if(!data || !Array.isArray(data)) return {}; 
+
+        const hierarchy = {};
+
+        data.forEach(row => {
+            const cust = row.customer || "Unknown Customer";
+            const cont = row.contract || "Unknown Contract";
+            const proj = row.project || "Unknown Project";
+            
+            const price = parseFloat(row.total_price) || 0;
+            const invest = parseFloat(row.invest_cost) || 0;
+            const staff = parseFloat(row.staff_cost) || 0; // NEW FIELD
+
+            // Initialize Customer
+            if (!hierarchy[cust]) hierarchy[cust] = { total_price: 0, invest_cost: 0, staff_cost: 0, contracts: {} };
+            hierarchy[cust].total_price += price;
+            hierarchy[cust].invest_cost += invest;
+            hierarchy[cust].staff_cost += staff; // AGGREGATE
+
+            // Initialize Contract
+            if (!hierarchy[cust].contracts[cont]) hierarchy[cust].contracts[cont] = { total_price: 0, invest_cost: 0, staff_cost: 0, projects: {} };
+            hierarchy[cust].contracts[cont].total_price += price;
+            hierarchy[cust].contracts[cont].invest_cost += invest;
+            hierarchy[cust].contracts[cont].staff_cost += staff; // AGGREGATE
+
+            // Initialize Project
+            if (!hierarchy[cust].contracts[cont].projects[proj]) hierarchy[cust].contracts[cont].projects[proj] = { total_price: 0, invest_cost: 0, staff_cost: 0, rows: [] };
+            hierarchy[cust].contracts[cont].projects[proj].total_price += price;
+            hierarchy[cust].contracts[cont].projects[proj].invest_cost += invest;
+            hierarchy[cust].contracts[cont].projects[proj].staff_cost += staff; // AGGREGATE
+
+            hierarchy[cust].contracts[cont].projects[proj].rows.push(row);
+        });
+
+        return hierarchy;
+    }
+
+    // ---------------------------------------------------------
+    // 3. RENDERING LOGIC
+    // ---------------------------------------------------------
+    
+    // Updated Header to show 3 metrics
+    function createHeaderHTML(title, price, invest, staff, className) {
+        return `
+            <div class="row-header ${className}">
+                <div class="row-info"><span class="arrow"></span>${title}</div>
+                <div class="row-metrics">
+                    <div class="metric-box">
+                        <span class="metric-label">Total Price</span>
+                        <span class="metric-val">${formatMoney(price)}</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Invest Cost</span>
+                        <span class="metric-val">${formatMoney(invest)}</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Staff Cost</span>
+                        <span class="metric-val">${formatMoney(staff)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Updated Table to show Num Tests and Staff Cost
+    function createTableHTML(rows) {
+        let rowsHtml = rows.map(r => `
+            <tr>
+                <td>${r.analysis}</td>
+                <td class="num">${r.num_tests || 0}</td> <td class="num">${formatMoney(r.total_price)}</td>
+                <td class="num">${formatMoney(r.invest_cost)}</td>
+                <td class="num">${formatMoney(r.staff_cost)}</td> </tr>
+        `).join('');
+
+        return `
+            <div class="container-analysis">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Analysis Details</th>
+                            <th style="text-align:right">Tests</th>
+                            <th style="text-align:right">Total Price</th>
+                            <th style="text-align:right">Invest Cost</th>
+                            <th style="text-align:right">Staff Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function renderReport() {
+        const container = document.getElementById('report-container');
+        if (!rawData || rawData.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#666;">No data found to display.</p>';
+            return;
+        }
+
+        const tree = processData(rawData);
+        let html = '';
+
+        for (const [custName, custData] of Object.entries(tree)) {
+            html += `<div class="group-customer">`;
+            html += createHeaderHTML(custName, custData.total_price, custData.invest_cost, custData.staff_cost, 'header-customer');
+            
+            html += `<div class="container-contract">`; 
+            for (const [contName, contData] of Object.entries(custData.contracts)) {
+                html += `<div class="group-contract">`;
+                html += createHeaderHTML(`Contract: ${contName}`, contData.total_price, contData.invest_cost, contData.staff_cost, 'header-contract');
+                html += `<div class="container-project">`;
+
+                for (const [projName, projData] of Object.entries(contData.projects)) {
+                    html += `<div class="group-project">`;
+                    html += createHeaderHTML(`Project: ${projName}`, projData.total_price, projData.invest_cost, projData.staff_cost, 'header-project');
+                    html += createTableHTML(projData.rows);
+                    html += `</div>`;
+                }
+                html += `</div></div>`;
+            }
+            html += `</div></div>`;
+        }
+        container.innerHTML = html;
+        document.querySelectorAll('.row-header').forEach(header => {
+            header.addEventListener('click', function() { this.parentElement.classList.toggle('expanded'); });
+        });
+    }
+
+    renderReport();
+</script>
+</body>
+</html>

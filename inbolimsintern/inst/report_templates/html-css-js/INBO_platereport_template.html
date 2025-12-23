@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Plate Layout Report</title>
+    <style>
+        :root { --border-color: #000; --cell-height: 20mm; }
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f0f0f0; display: flex; }
+        
+        #sidebar { width: 180px; background: #2c3e50; color: white; height: 100vh; padding: 15px; position: fixed; overflow-y: auto; }
+        .plate-link { display: block; padding: 10px; cursor: pointer; color: #ccc; border-bottom: 1px solid #34495e; font-size: 13px; }
+        .plate-link.active-nav { color: white; background: #3498db; font-weight: bold; }
+
+        #report-container { margin-left: 210px; padding: 20px; }
+        .report-page { background: white; width: 287mm; height: 202mm; padding: 5mm 8mm; margin-bottom: 20px; display: flex; flex-direction: column; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        
+        /* Three-field Header */
+        .header-info { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid black; padding-bottom: 5px; }
+        .header-info span { flex: 1; }
+        .header-info span:nth-child(2) { text-align: center; }
+        .header-info span:nth-child(3) { text-align: right; }
+
+        .plate-grid { display: grid; grid-template-columns: 35px repeat(12, 1fr); border-top: 1px solid var(--border-color); border-left: 1px solid var(--border-color); width: 100%; }
+        .grid-header, .row-label { background: #f8f9fa; text-align: center; font-weight: bold; font-size: 11px; border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 4px 0; }
+        .row-label { display: flex; align-items: center; justify-content: center; }
+
+        /* Cell Styling with flex-grow for larger middle rows */
+        .cell { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); height: var(--cell-height); display: flex; flex-direction: column; font-size: 9px; text-align: center; line-height: 1.1; overflow: hidden; }
+        .c-id { font-weight: bold; padding: 2px 0; height: 12px; }
+        .c-vol { border-top: 1px solid #eee; font-weight: bold; background: #fdfdfd; padding: 2px 0; height: 12px; }
+        
+        /* These rows will expand to be larger */
+        .c-prnt, .c-pos { flex-grow: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .c-prnt { font-style: italic; font-size: 8.5px; color: #333; }
+        .c-pos { font-size: 8px; color: #555; }
+
+        @media screen { .report-page:not(.active) { display: none; } }
+        @media print {
+            #sidebar { display: none; }
+            #report-container { margin: 0; padding: 0; }
+            .report-page { display: flex !important; width: 297mm; height: 210mm; margin: 0; page-break-after: always; break-after: page; }
+            @page { size: A4 landscape; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h3 style="font-size:14px;">Plate List</h3>
+        <div id="plate-menu"></div>
+        <button onclick="window.print()" style="margin-top:30px; width:100%; padding:10px; cursor:pointer; background:#27ae60; color:white; border:none; font-weight:bold;">PRINT ALL</button>
+    </div>
+    <div id="report-container"></div>
+
+<script>
+    /* rawData: This is the placeholder where LIMS Basic injects the JSON.
+       In R terms: This is your raw dataframe.
+    */
+    const rawData = [ /*DATA_JSON_ARRAY*/ ];
+
+    function init() {
+        // 1. DATA CHECK: Exit if no data was found to avoid errors
+        if (rawData.length === 0) return;
+
+        /* 2. DATA GROUPING (Reshaping): 
+           We create an object 'plates' to act as a nested list: plates -> PlateName -> Caps -> CapLetter.
+           In R, this is similar to: split(rawData, rawData$Plate)
+        */
+        const plates = {};
+        rawData.forEach(d => {
+            // If we haven't seen this Plate name yet, initialize its "entry"
+            if (!plates[d.Plate]) {
+                plates[d.Plate] = { 
+                    name: d.Plate, 
+                    proj: d.Proj, 
+                    qc: d.QC, 
+                    caps: {} // This will hold the rows A through H
+                };
+            }
+            // Assign the lane data to the specific Capillar (Row A-H)
+            if (d.Cap) {
+                plates[d.Plate].caps[d.Cap] = d;
+            }
+        });
+
+        // 3. UI SELECTION: Grab the HTML elements where we want to "draw" things
+        const container = document.getElementById('report-container');
+        const menu = document.getElementById('plate-menu');
+
+        /* 4. ITERATING PLATES:
+           We sort the plate names and loop through them to build the sidebar and pages.
+        */
+        Object.keys(plates).sort().forEach((plateName, idx) => {
+            const plate = plates[plateName];
+            
+            // 5. SIDEBAR LINKS: Create a clickable div for each plate
+            const link = document.createElement('div');
+            link.className = `plate-link ${idx === 0 ? 'active-nav' : ''}`;
+            link.innerText = plate.name;
+            
+            // NAVIGATION LOGIC: What happens when you click a plate?
+            link.onclick = () => {
+                // Hide all pages, then show only the one clicked
+                document.querySelectorAll('.report-page').forEach(p => p.classList.remove('active'));
+                document.getElementById(`pg-${plate.name}`).classList.add('active');
+                
+                // Update sidebar highlight
+                document.querySelectorAll('.plate-link').forEach(l => l.classList.remove('active-nav'));
+                link.classList.add('active-nav');
+            };
+            menu.appendChild(link);
+
+            // 6. PAGE CREATION: Create the actual A4 container for this plate
+            const page = document.createElement('div');
+            page.id = `pg-${plate.name}`;
+            page.className = `report-page ${idx === 0 ? 'active' : ''}`;
+            
+            // 7. HEADER CONSTRUCTION: Use "Template Literals" (backticks) to inject variables
+            let html = `
+                <div class="header-info">
+                    <span>Plaat: ${plate.name}</span>
+                    <span>QC Method: ${plate.qc || ''}</span>
+                    <span>Project: ${plate.proj || ''}</span>
+                </div>
+                <div class="plate-grid"><div class="grid-header"></div>`;
+            
+            // 8. COLUMN HEADERS: Generate Lane 1 through Lane 12
+            for(let i=1; i<=12; i++) html += `<div class="grid-header">Lane ${i}</div>`;
+
+            /* 9. GRID LOOPING (Rows A-H): 
+               For each row letter, we build the label and then the 12 columns.
+            */
+            ['A','B','C','D','E','F','G','H'].forEach(capLetter => {
+                html += `<div class="row-label">${capLetter}</div>`;
+                
+                // Get the data for this specific row (A, B, etc.)
+                const capRowData = plate.caps[capLetter] || {};
+                
+                // Inner Loop for Lanes 1-12
+                for(let l=1; l<=12; l++) {
+                    // Match the JSON key format "L01", "L02", etc.
+                    // .padStart(2,'0') ensures 1 becomes "01" (like formatC in R)
+                    const laneKey = "L" + String(l).padStart(2,'0');
+                    
+                    // Fallback to empty strings if the lane has no data
+                    const cell = capRowData[laneKey] || ["","","","",""];
+                    
+                    // TERNARY OPERATOR: Like ifelse() in R. 
+                    // Syntax: (condition) ? (true value) : (false value)
+                    const parentDisplay = (cell[1] && cell[1].trim() !== "") ? `(${cell[1]})` : "";
+
+                    // 10. CELL ASSEMBLY: Standardize how the 5 rows look inside the box
+                    html += `
+                        <div class="cell">
+                            <div class="c-id">${cell[0] || ''}</div>
+                            <div class="c-prnt">${parentDisplay}</div>
+                            <div class="c-pos">${cell[2] || ''}</div>
+                            <div class="c-pos">${cell[3] || ''}</div>
+                            <div class="c-vol">${cell[4] || ''}</div>
+                        </div>`;
+                }
+            });
+
+            // Finalize the HTML string and "inject" it into the page container
+            page.innerHTML = html + `</div>`;
+            container.appendChild(page);
+        });
+    }
+
+    // Start the process
+    init();
+</script>
+</body>
+</html>
