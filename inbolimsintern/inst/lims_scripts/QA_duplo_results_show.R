@@ -31,6 +31,7 @@ e <- try({
   firstdate <- params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
   lastdate  <-  params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
   lab       <- params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
+  project   <- params %>% filter(ARG_NAME == 'PROJECT') %>% pull(VALUE)
 })
 if (inherits(e, "try-error")) {
   write_db_log(paste("error retrieving params:", e), "E")
@@ -43,40 +44,142 @@ if (inherits(e, "try-error")) {
 #// Import data
 ##=============
 
-qry <- paste0(
-"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
-", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
-", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
-", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
-" from result r, test t, sample s ", "\n",
-" where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
-" and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
-                             " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
-                             " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
-" and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
-" and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
-" and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
-" and r.ENTRY_QUALIFIER is NULL",
-" order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
-)
+if (!length(project)) {
+  qry <- paste0(
+    "select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
+    ", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
+    ", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
+    ", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
+    ", dupident = r.ANALYSIS + '_' + r.NAME + '_' + CAST(t.REPLICATE_COUNT AS VARCHAR) + '_' + CAST(s.C_ORIG_DUP_NUMBER AS VARCHAR)", "\n",
+    " from result r, test t, sample s ", "\n",
+    " where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
+    " and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
+    " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
+    " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
+    " and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
+    " and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
+    " and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
+    " and r.ENTRY_QUALIFIER is NULL",
+    " order by dupident"
+  )
 
-e <- try({
-  df_all <- dbGetQuery(conn, qry)
-  df_all <- df_all %>%
-    mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
-           waarde_ruw = as.numeric(value))
-})
-if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
-  if (nrow(e) == 0) {
-    msg = "Data bevat 0 rijen"
+  e <- try({
+    df_all <- dbGetQuery(conn, qry)
+    df_all <- df_all %>%
+      mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
+             waarde_ruw = as.numeric(value))
+  })
+  if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
+    if (nrow(e) == 0) {
+      msg = "Data bevat 0 rijen"
+    } else {
+      msg = "Probleem laden data"
+    }
+    write_db_log(paste(msg, e), "E")
+    stop(e)
   } else {
-    msg = "Probleem laden data"
+    write_db_log(paste("data records:", nrow(df_all)), "P")
   }
-  write_db_log(paste(msg, e), "E")
-  stop(e)
-} else {
-  write_db_log(paste("data records:", nrow(df_all)), "P")
 }
+
+#query in het geval van een blind parent project
+#------------------------------------------------
+if (length(project)) {
+  qry <- paste0(
+    "WITH BlindPairs AS (", "\n",
+    "  SELECT ", "\n",
+    "    s_blind.sample_number AS blind_sn, ", "\n",
+    "    s_orig.sample_number AS orig_sn, ", "\n",
+    "    s_orig.original_sample AS link_id ", "\n",
+    "  FROM SAMPLE s_blind ", "\n",
+    "  INNER JOIN SAMPLE s_orig ON s_orig.original_sample = s_blind.C_BLIND_PARENT ", "\n",
+    "  WHERE s_blind.project = '", project, "' ", "\n",
+    "    AND s_blind.status IN ('P', 'C', 'A') ", "\n",
+    ") ", "\n",
+    "SELECT DISTINCT ", "\n",
+    "  project = s.PROJECT, ", "\n",
+    "  matrix = s.C_SAMPLE_MATRIX, ", "\n",
+    "  product_grade = s.PRODUCT_GRADE, ", "\n",
+    "  dupnr = bp.link_id, ", "\n",
+    "  sampletype = s.SAMPLE_TYPE, ", "\n",
+    "  textid = s.TEXT_ID, ", "\n",
+    "  blindparent = s.C_BLIND_PARENT, ", "\n",
+    "  analysis = r.ANALYSIS, ", "\n",
+    "  name = r.NAME, ", "\n",
+    "  value = r.NUMERIC_ENTRY, ", "\n",
+    "  unit = r.UNITS, ", "\n",
+    "  date = r.ENTERED_ON, ", "\n",
+    "  repli = t.REPLICATE_COUNT, ", "\n",
+    "  dupident = r.ANALYSIS + '_' + r.NAME + '_' + CAST(t.REPLICATE_COUNT AS VARCHAR) + '_' + CAST(bp.link_id AS VARCHAR) ", "\n",
+    "FROM BlindPairs bp ", "\n",
+    "INNER JOIN SAMPLE s ON (s.sample_number = bp.blind_sn OR s.sample_number = bp.orig_sn) ", "\n",
+    "INNER JOIN TEST t   ON t.sample_number = s.sample_number ", "\n",
+    "INNER JOIN RESULT r ON r.test_number = t.test_number ", "\n",
+    "WHERE r.REPORTABLE = 'T' ", "\n",
+    "  AND r.NUMERIC_ENTRY IS NOT NULL ", "\n",
+    "  AND r.STATUS IN ('E', 'M', 'A') ", "\n",
+    "  AND r.ENTRY_QUALIFIER IS NULL ", "\n",
+    "  AND s.SAMPLE_TYPE is null", "\n",
+    "ORDER BY dupident"
+  )
+
+  e <- try({
+    df_all <- dbGetQuery(conn, qry)
+    df_all <- df_all %>%
+      mutate(sampletype = ifelse(blindparent == 0, "SAMP", "DUP"),
+             waarde_ruw = as.numeric(value))
+  })
+  if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
+    if (nrow(e) == 0) {
+      msg = "Data bevat 0 rijen"
+    } else {
+      msg = "Probleem laden data"
+    }
+    write_db_log(paste(msg, e), "E")
+    stop(e)
+  } else {
+    write_db_log(paste("data records:", nrow(df_all)), "P")
+  }
+}
+
+#OLD
+#
+# #Volledige duplo analyse
+# #------------------------
+# qry <- paste0(
+# "select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
+# ", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
+# ", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
+# ", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
+# " from result r, test t, sample s ", "\n",
+# " where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
+# " and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
+#                              " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
+#                              " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
+# " and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
+# " and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
+# " and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
+# " and r.ENTRY_QUALIFIER is NULL",
+# " order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
+# )
+#
+# e <- try({
+#   df_all <- dbGetQuery(conn, qry)
+#   df_all <- df_all %>%
+#     mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
+#            waarde_ruw = as.numeric(value))
+# })
+# if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
+#   if (nrow(e) == 0) {
+#     msg = "Data bevat 0 rijen"
+#   } else {
+#     msg = "Probleem laden data"
+#   }
+#   write_db_log(paste(msg, e), "E")
+#   stop(e)
+# } else {
+#   write_db_log(paste("data records:", nrow(df_all)), "P")
+# }
 
 
 #// Process the data
