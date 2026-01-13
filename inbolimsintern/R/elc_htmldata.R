@@ -132,8 +132,9 @@ elc_htmldata <-
                             certified = round(c(certified, certified_sd),
                                               digits = digits),
                             ctr_fix = round(c(ctr_x, ctr_sd),digits = digits),
-                            calculated_incl_outliers = round(c(chart_mean, chart_sd), digits = digits),
-                            calculated_excl_outliers = round(c(chart_mean_clean, chart_sd_clean), digits = digits))
+                            first_incl_outl = round(c(chart_mean, chart_sd), digits = digits),
+                            first_excl_outl = round(c(chart_mean_clean, chart_sd_clean), digits = digits),
+                            all = round(c(mean(subdata$ENTRY), sd(subdata$ENTRY)), digits = digits))
 
   #waarden buiten 3s grenzen die mogelijks niet in grafiek staan
   fxavg <- summarydata %>% filter(param == "gem") %>% pull(ctr_fix)

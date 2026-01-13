@@ -10,27 +10,6 @@ library(DT)
 library(htmltools)
 library(htmlwidgets)
 
-save_report <- function(widget, filename = "output.html", libdir = "output_files") {
-  # Try to find pandoc
-  pandoc_found <- !is.null(rmarkdown::find_pandoc(dir = NULL)) &&
-    nzchar(Sys.which("pandoc"))
-
-  if (pandoc_found) {
-    message("Pandoc found — generating self-contained HTML.")
-    pandoc_ran <- try(htmlwidgets::saveWidget(widget, file = filename, selfcontained = TRUE))
-    if (inherits(pandoc_ran, "try-error")){
-      message("Pandoc found but not runnable — falling back to non-self-contained HTML.")
-      htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
-      message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
-    }
-  } else {
-    message("Pandoc not found — falling back to non-self-contained HTML.")
-    htmlwidgets::saveWidget(widget, file = filename, selfcontained = FALSE, libdir = libdir)
-    message("Please make sure to include the `", libdir, "` folder when sharing the HTML file.")
-  }
-}
-
-
 #PANDOC Path needs to be set for use with Rscript.exe
 
 #LW7PRD
@@ -44,7 +23,7 @@ Sys.setenv(RSTUDIO_PANDOC = pandoc_dir)
 
 ### Init Logfile
 
-call_id <- 0 #call_id <- 10016
+call_id <- 0 #call_id <- 10016 10245
 logfile <- logfile_start(prefix = "ELC_Shewhart")
 writeLines(con = logfile, paste0("ELC_Shewhart\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
@@ -121,12 +100,21 @@ for (i in 1:nrow(combis)) {
 
   pltly <- ELC_shewhart_plot(subdata = htmldata[["plot"]],
                          interactive = TRUE,
-                         title = subtitle)
+                         title = subtitle) %>%
+    plotly::layout(height = 595) #set height to match container div height of 600
   plot_widgets[[comb]][["fig"]] <- pltly
   plot_widgets[[comb]][["smry"]] <- datatable(htmldata[['summary']])
-  plot_widgets[[comb]][["data"]] <- datatable(htmldata[['tabel']])
+  plot_widgets[[comb]][["data"]] <- datatable(htmldata[['tabel']],
+                                              extensions = "Buttons",
+                                              options = list(
+                                                dom = 'Bfrtip',
+                                                buttons = c("copy", "csv")
+                                              ))
   plot_widgets[[comb]][["out3s"]] <- datatable(htmldata[['out3s']])
 }
+
+writeLines(con = logfile, "\nNumber of Widgets\n------\n")
+cat(length(plot_widgets), '\n', file = logfile, append = TRUE)
 
 ###############################################################################
 ### CREATE HTML
@@ -156,7 +144,10 @@ for (comb in names(plot_widgets)) {
       id = section_id,
       tags$h2(paste0("Component: ", comp)),
       tags$h3(paste0("QC: ", qc)),
-      plot_widgets[[comb]][["fig"]],
+      tags$div(
+        style = "height:600px;",
+        plot_widgets[[comb]][["fig"]]
+      ),
       tags$h4("Samenvattende gegevens"),
       plot_widgets[[comb]][["smry"]],
       tags$h4("Bijhorende tabel"),
@@ -169,7 +160,10 @@ for (comb in names(plot_widgets)) {
       id = section_id,
       tags$h2(paste0("Component: ", comp)),
       tags$h3(paste0("QC: ", qc)),
-      plot_widgets[[comb]][["fig"]],
+      tags$div(
+        style = "height:600px;",
+        plot_widgets[[comb]][["fig"]]
+      ),
       tags$h4("Samenvattende gegevens"),
       plot_widgets[[comb]][["smry"]],
       tags$h4("Bijhorende tabel"),
@@ -180,6 +174,8 @@ for (comb in names(plot_widgets)) {
 
 # Wrap TOC
 toc_widget <- tags$ul(toc_items)
+
+cat("Start assembling layout", file = logfile, append = TRUE)
 
 # Assemble full layout
 layout <- tagList(
@@ -201,7 +197,7 @@ layout <- tagList(
                       " Hoe donkderder de blauwe bol, hoe eerder in de batch die voorkomt.",
                       " Overtredingen van regels worden in de figuur en tabel aangeduid.")),
         tags$ul(
-          tags$li("Punt telt niet mee: blauwe bol, eval = ."),
+          tags$li("Punt telt niet mee: blauwe bol (hoe donkerder hoe eerder in de batch), eval = ."),
           tags$li("Correct punt: groene bol, eval = ------"),
           tags$li("R1: Buiten 3 sigma: rode bol, eval = R1"),
           tags$li("R2a: 2 opeenvolgend buiten 2 sigma, zelfde kant: rode bol, eval = R2"),
@@ -217,7 +213,9 @@ layout <- tagList(
 # Combine and save
 output <- htmlwidgets::prependContent(placeholder, layout)
 #htmlwidgets::saveWidget(output, htmlfile, selfcontained = TRUE)
-save_report(output, filename = htmlfile)
+save_widgets_report(output, filename = htmlfile)
+
+cat('Html file created\n', file = logfile, append = TRUE)
 
 ### html tonena
 shell.exec(htmlfile)
