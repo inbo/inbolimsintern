@@ -12,7 +12,7 @@ logfile <- logfile_start(prefix = "TLC_Duplo_Overview")
 writeLines(con = logfile, paste0("TLC_Duplo_Overview\n-------------\ninbolimsintern versie: ", packageVersion("inbolimsintern")))
 
 ### LIMS argumenten
-call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721 6572 9733
+call_id <- 0 #call_id <- 3066 call_id <- 3065 #call_id <- 5720 5721 6572 9733 (10924 blind duplo)
 digits <- 5
 try({
   args <- inbolimsintern::prepare_session(call_id)
@@ -36,34 +36,92 @@ try({
 #dupprefix = "D"
 #labprefix = paste0("%", lab, "%")
 firstdate <- params %>% filter(ARG_NAME == 'START') %>% pull(VALUE)
-lastdate  <-  params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
+lastdate  <- params %>% filter(ARG_NAME == 'END') %>% pull(VALUE)
 lab       <- params %>% filter(ARG_NAME == 'LAB') %>% pull(VALUE)
 outtype   <- params %>% filter(ARG_NAME == 'FILE_SEP') %>% pull(VALUE)
+project   <- params %>% filter(ARG_NAME == 'PROJECT') %>% pull(VALUE)
 
-qry <- paste0(
-"select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
-", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
-", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
-", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
-" from result r, test t, sample s ", "\n",
-" where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
-" and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
-                             " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
-                             " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
-" and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
-" and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
-" and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
-" and r.ENTRY_QUALIFIER is NULL",
-" order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
-)
+#query in het geval van een volledige duplo analyse
+#---------------------------------------------------
+if (!length(project)) {
+  qry <- paste0(
+    "select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
+    ", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
+    ", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
+    ", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
+    ", dupident = r.ANALYSIS + '_' + r.NAME + '_' + CAST(t.REPLICATE_COUNT AS VARCHAR) + '_' + CAST(s.C_ORIG_DUP_NUMBER AS VARCHAR)", "\n",
+    " from result r, test t, sample s ", "\n",
+    " where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
+    " and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
+    " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
+    " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
+    " and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
+    " and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
+    " and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
+    " and r.ENTRY_QUALIFIER is NULL",
+    " order by dupident"
+  )
+  cat(qry, file =  logfile, append = TRUE, sep = "\n")
+  df_all <- dbGetQuery(conn, qry)
+  df_all <- df_all %>%
+    mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
+           waarde_ruw = as.numeric(value))
+  cat("aantal rijen in data: ", nrow(df_all), '\n', file = logfile, sep = "\n")
+}
 
-cat(qry, file =  logfile, append = TRUE, sep = "\n")
 
-df_all <- dbGetQuery(conn, qry)
-df_all <- df_all %>%
-  mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
-         waarde_ruw = as.numeric(value))
-cat("aantal rijen in data: ", nrow(df_all), '\n', file = logfile, sep = "\n")
+#query in het geval van een blind parent project
+#------------------------------------------------
+if (length(project)) {
+  qry <- paste0(
+    "WITH BlindPairs AS (", "\n",
+    "  SELECT ", "\n",
+    "    s_blind.sample_number AS blind_sn, ", "\n",
+    "    s_orig.sample_number AS orig_sn, ", "\n",
+    "    s_orig.original_sample AS link_id ", "\n",
+    "  FROM SAMPLE s_blind ", "\n",
+    "  INNER JOIN SAMPLE s_orig ON s_orig.original_sample = s_blind.C_BLIND_PARENT ", "\n",
+    "  WHERE s_blind.project = '", project, "' ", "\n",
+    "    AND s_blind.status IN ('P', 'C', 'A') ", "\n",
+    ") ", "\n",
+    "SELECT DISTINCT ", "\n",
+    "  project = s.PROJECT, ", "\n",
+    "  matrix = s.C_SAMPLE_MATRIX, ", "\n",
+    "  product_grade = s.PRODUCT_GRADE, ", "\n",
+    "  dupnr = bp.link_id, ", "\n",
+    "  sampletype = s.SAMPLE_TYPE, ", "\n",
+    "  textid = s.TEXT_ID, ", "\n",
+    "  blindparent = s.C_BLIND_PARENT, ", "\n",
+    "  analysis = r.ANALYSIS, ", "\n",
+    "  name = r.NAME, ", "\n",
+    "  value = r.NUMERIC_ENTRY, ", "\n",
+    "  unit = r.UNITS, ", "\n",
+    "  date = r.ENTERED_ON, ", "\n",
+    "  repli = t.REPLICATE_COUNT, ", "\n",
+    "  dupident = r.ANALYSIS + '_' + r.NAME + '_' + CAST(t.REPLICATE_COUNT AS VARCHAR) + '_' + CAST(bp.link_id AS VARCHAR) ", "\n",
+    "FROM BlindPairs bp ", "\n",
+    "INNER JOIN SAMPLE s ON (s.sample_number = bp.blind_sn OR s.sample_number = bp.orig_sn) ", "\n",
+    "INNER JOIN TEST t   ON t.sample_number = s.sample_number ", "\n",
+    "INNER JOIN RESULT r ON r.test_number = t.test_number ", "\n",
+    "WHERE r.REPORTABLE = 'T' ", "\n",
+    "  AND r.NUMERIC_ENTRY IS NOT NULL ", "\n",
+    "  AND r.STATUS IN ('E', 'M', 'A') ", "\n",
+    "  AND r.ENTRY_QUALIFIER IS NULL ", "\n",
+    "  AND s.SAMPLE_TYPE is null", "\n",
+    "ORDER BY dupident"
+  )
+  cat(qry, file =  logfile, append = TRUE, sep = "\n")
+  df_all <- dbGetQuery(conn, qry)
+  df_all <- df_all %>%
+    mutate(sampletype = ifelse(blindparent == 0, "SAMP", "DUP"),
+           waarde_ruw = as.numeric(value))
+  cat("aantal rijen in data: ", nrow(df_all), '\n', file = logfile, sep = "\n")
+}
+
+#Verwerking identiek voor beide gevallen
+#---------------------------------------
+
+
 
 
 df_pivot_orig <- df_all %>%
@@ -121,6 +179,7 @@ df_cvsd <- df_pivot %>%
 df_pivot_incl_smry <- bind_rows(df_pivot, df_cvsd) %>%
   arrange(analysis, name, textid) %>%
   transmute(Analysis = analysis, Component = name,
+            Eenheid = unit,
             "Text-ID 1" = textid, "Datum 1" = date,
             "Text-ID 2" = textid_dup, "Datum 2" = date_dup,
             Project = project, Matrix = matrix, "Product grade" = product_grade,
@@ -131,8 +190,6 @@ df_pivot_incl_smry <- bind_rows(df_pivot, df_cvsd) %>%
             SD = sd, CV = cv)
 
 cat("aantal paarsgewijze testen: ", nrow(df_pivot_incl_smry), '\n', file = logfile, sep = "\n")
-
-Sys.sleep(2)
 
 if (outtype == "FULL") {
   cat("writing csv", sep = "\n", file = logfile, append = TRUE)
@@ -146,7 +203,7 @@ if (outtype == "FULL") {
     write_excel_csv2(df_pivot_incl_smry %>% filter(COMBI == i) %>% select(-COMBI), file = partpath, col_names = TRUE, na = '')
   }
 }
-Sys.sleep(2)
+Sys.sleep(1)
 
 
 
