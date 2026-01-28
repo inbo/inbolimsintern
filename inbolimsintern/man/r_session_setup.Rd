@@ -6,24 +6,24 @@
 \usage{
 r_session_setup(
   args = commandArgs(trailingOnly = TRUE),
+  logfile = "lims_rsession.log",
   test_mode = FALSE,
-  cred_file = "dbcredentials.txt",
-  logfile = "lims_rsession.log"
+  cred_file = "dbcredentials.txt"
 )
 }
 \arguments{
 \item{args}{defaults to commandArgs(trailingOnly = TRUE), but user can specify a custom character vector of arguments. The first 3 arguments must be dbodbc, call_id, and user}
 
-\item{test_mode}{if TRUE the credentials are read from the cred_file}
+\item{logfile}{logfile to write to, because this routine is ran before the databae connection is established and the logs can be saved there}
 
-\item{cred_file}{Path to the credentials file containing
+\item{test_mode}{(obsolete) if TRUE the credentials are read from the cred_file (obsolete)}
+
+\item{cred_file}{(obsolete) Path to the credentials file containing (obsolete)
 database connection information. Used only in interactive/test mode.
 The file should contain at least three lines containing
 and just one column containing: data source, username, and password
 in this exact order
 Default is "dbcredentials.txt".}
-
-\item{logfile}{logfile to write to, because this routine is ran before the databae connection is established and the logs can be saved there}
 }
 \value{
 A list containing essential objects for the script:

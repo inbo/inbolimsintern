@@ -5,19 +5,28 @@
 #// setup environment
 ##=====================
 
+logfile = "D:/LABO_FS_PRD/_PIETER/qccharts.log"
+cat("starting Qc charts\n", file = logfile)
+cat("working dir:", getwd(), "\n", file = logfile, append = TRUE)
+
 library(tidyverse)
 library(inbolimsintern)
 library(htmltools)
 fig_height <- 600
 
+cat("libraries loaded\n", file = logfile, append = TRUE)
+cat("args:\n", commandArgs(trailingOnly = TRUE), "\n", file = logfile, append = TRUE)
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
-#args <- c("LWL8DEV", "9986", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#args <- c("LWL8PRD", "11124", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#args <- c("LWL8PRD", "11126", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
 #args <- c("LWL8UAT", "10430", "TEST_2");setup <- try(r_session_setup(args, test_mode = TRUE))
 if (inherits(setup, "try-error")) {
+  cat(setup, "\n", file = logfile, append = TRUE)
   stop("probleem bij setup script")
 }
 invisible(list2env(setup, envir = .GlobalEnv))
 
+cat("finished setting environment \n", file = logfile, append = TRUE)
 
 #// retrieve arguments
 ##=====================

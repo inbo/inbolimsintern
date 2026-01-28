@@ -64,43 +64,15 @@ r_session_setup <- function(args = commandArgs(trailingOnly = TRUE),
   } else {
     cat(" environment variables loaded\n", file = logfile, append = TRUE)
   }
-  cat(Sys.getenv()["DB_PASS_UAT"], "\n", file = logfile, append = TRUE)
-
-  #// 1 get the arguments
-  #validate if is test_mode
-  # if (test_mode) {
-  #   creds <- try(inbolimsintern::read_db_credentials(cred_file), silent = TRUE)
-  #   if (inherits(creds, "try-error")) {
-  #     errmsg <- paste("Database info niet gevonden, zorg dat cred_file verwijst naar een bestaand bestand\n",
-  #                     "(Database info not found, ensure cred_file points to an existing file)\n",
-  #                     "Attempted file: ", cred_file, "\n")
-  #     cat(errmsg, file = logfile, append = TRUE)
-  #     stop(errmsg)
-  #   }
-  #   arglist <- list(
-  #     host    = as.character(creds$host),
-  #     dsn     = as.character(creds$dsn),
-  #     uid     = as.character(creds$uid),
-  #     pwd     = as.character(creds$pwd),
-  #     call_id = as.character(call_id),
-  #     user    = "TEST")
-  #   conn <- limsdb_connect(connectlist = arglist)
-  # } else {
-  #   cat(Sys.getenv(paste0("DB_PASS_", env)), "\n", file = f, append = TRUE)
-  #   a <- try(conn <- limsdb_connect(env = env))
-  #   if (inherits(a, "try-error")) cat(a, file = f, append = TRUE)
-  # }
-  # if (is.character(conn)) {
-  #   cat("db connection failed: ", conn, file = logfile, append = TRUE)
-  #   stop(paste("db connection failed: ", conn))
-  # } else {
-  #   message("database connection established")
-  # }
-
+  cat(Sys.getenv()["DB_HOST_PRD"], "\n", file = logfile, append = TRUE)
+  cat(Sys.getenv()["DB_USER_PRD"], "\n", file = logfile, append = TRUE)
+  cat(Sys.getenv()["DB_PASS_PRD"], "\n", file = logfile, append = TRUE)
+  cat(Sys.getenv()["DB_DSRC_PRD"], "\n", file = logfile, append = TRUE)
+  cat("env:", env, "\n", file = logfile, append = TRUE)
 
   #// connect to db
   a <- try(conn <- limsdb_connect(env = env))
-  if (inherits(a, "try-error")) cat(a, file = f, append = TRUE)
+  if (inherits(a, "try-error")) cat(a, "\n", file = logfile, append = TRUE)
 
   #// 2 Initiate logging
   #read en write logs

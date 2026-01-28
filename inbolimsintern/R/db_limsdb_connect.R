@@ -42,7 +42,7 @@ limsdb_connect <- function(env = "PRD", connectlist = NULL) {
       )
     }
     cvars <- list(host = db_host, dsn = db_dsrc, uid = db_user, pwd = db_pass)
-    print(cvars)
+    #print(cvars)
     cat(paste(unlist(cvars), collapse = "\n"), file = "cvars.log")
   }
 
