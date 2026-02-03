@@ -1,0 +1,82 @@
+/* Core LabWare Styles */
+body {
+    font-family: Verdana, sans-serif, Arial;
+    font-size: 12px;
+    color: #196995;
+    background-color: #FFFFFF;
+}
+
+.vw_main { margin: 20px; position: relative; display: flex; flex-direction: row; gap: 20px; }
+.vw_content_area { flex-grow: 1; }
+
+/* Navigation Panel (Left Sidebar) */
+.vw_nav_panel {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+.vw_menu_table {
+    width: 100%;
+    border: 1px solid #4890B9;
+    border-radius: 6px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+.vw_menu_table th {
+    background: #196995 linear-gradient(to bottom, #196995 5%, #5299C1 100%);
+    color: white;
+    padding: 8px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.vw_menu_table td {
+    padding: 0; /* Links fill the cell */
+    border-bottom: 1px solid #dae5eb;
+}
+
+.vw_menu_table td a {
+    display: block;
+    padding: 10px;
+    text-decoration: none;
+    color: #196995;
+    font-weight: bold;
+}
+
+.vw_menu_table td a:hover {
+    background-color: #DAE5EB;
+    text-decoration: underline;
+}
+
+/* Button Styles (Directly from your LabWare CSS) */
+.vw_button_aqua {
+    background: #479D9B linear-gradient(to bottom, #479D9B 5%, #A4E9CE 100%);
+    border-radius: 6px;
+    border: 1px solid rgba(164, 233, 206, 0.6);
+    color: #ffffff !important;
+    font-weight: bold;
+    padding: 5px 15px;
+    text-decoration: none;
+    text-shadow: 1px 1px 0px #528ecc;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.vw_button_aqua:hover {
+    background: #A4E9CE linear-gradient(to bottom, #A4E9CE 5%, #479D9B 100%);
+}
+
+/* DT Table Styling */
+table.dataTable.vw_table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    border-bottom: 5px solid #3489B8 !important;
+}
+
+table.dataTable.vw_table thead th {
+    background: #74a6cd !important;
+    color: white !important;
+}
+

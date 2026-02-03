@@ -1,3 +1,63 @@
+#' Save a Self-Contained HTML Report for LabWare
+#'
+#' This function takes an htmlwidget or a tagList (processed via prependContent) 
+#' and saves it as a single, self-contained HTML file. It is optimized for 
+#' LabWare LIMS environments where external folder dependencies (like _files) 
+#' are often restricted.
+#'
+#' @param widget The htmlwidget or layout object to save. Typically created 
+#'   using \code{htmlwidgets::prependContent}.
+#' @param filename A character string specifying the full output path 
+#'   (e.g., "C:/LIMS/Reports/QC_Chart.html").
+#' @param selfcontained Logical. If \code{TRUE} (default), all Javascript, 
+#'   CSS, and images are embedded directly into the HTML file using Pandoc.
+#'
+#' @details 
+#' The function ensures the destination directory exists before saving. 
+#' If \code{selfcontained = TRUE} and Pandoc is not found on the system, 
+#' the function will throw an error. In a LIMS environment, ensure the 
+#' service account has write permissions to the destination folder.
+#'
+#' @return The function returns the normalized path to the saved file invisibly.
+#' 
+#' @importFrom htmlwidgets saveWidget
+#' @importFrom utils browseURL
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Assuming 'output' is your assembled report layout
+#' save_report_widget(output, "D:/LIMS_DATA/QC_Report.html")
+#' }
+save_report_widget <- function(widget, filename, selfcontained = TRUE) {
+  
+  # Ensure the target directory exists
+  target_dir <- dirname(filename)
+  if (!dir.exists(target_dir)) {
+    dir.create(target_dir, recursive = TRUE)
+  }
+  
+  # Normalize path for Windows compatibility
+  filename <- normalizePath(filename, mustWork = FALSE)
+  
+  # Save using the standard htmlwidgets method
+  # libdir is set to NULL to ensure self-contained mode works as intended
+  htmlwidgets::saveWidget(
+    widget = widget,
+    file = filename,
+    selfcontained = selfcontained,
+    libdir = if (!selfcontained) paste0(tools::file_path_sans_ext(basename(filename)), "_files") else NULL
+  )
+  
+  return(invisible(filename))
+}
+
+
+
+
+
+
+
 #' Save HTML Widget with Fallback Options
 #'
 #' Attempts to save an HTML widget as a self-contained HTML file using pandoc.
@@ -53,7 +113,7 @@
 #' \code{\link[rmarkdown]{find_pandoc}} for pandoc detection
 #'
 #' @export
-save_report_widget <- function(widget, filename = "output.html", libdir = "output_files") {
+save_report_widget_old <- function(widget, filename = "output.html", libdir = "output_files") {
   # Try to find pandoc
   pandoc_found <- !is.null(rmarkdown::find_pandoc(dir = NULL)) &&
     nzchar(Sys.which("pandoc"))

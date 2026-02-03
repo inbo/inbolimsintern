@@ -2,65 +2,38 @@
 % Please edit documentation in R/save_report_widget.R
 \name{save_report_widget}
 \alias{save_report_widget}
-\title{Save HTML Widget with Fallback Options}
+\title{Save a Self-Contained HTML Report for LabWare}
 \usage{
-save_report_widget(widget, filename = "output.html", libdir = "output_files")
+save_report_widget(widget, filename, selfcontained = TRUE)
 }
 \arguments{
-\item{widget}{An HTML widget object (e.g., from plotly, DT, leaflet, etc.)
-to be saved as an HTML file.}
+\item{widget}{The htmlwidget or layout object to save. Typically created 
+using \code{htmlwidgets::prependContent}.}
 
-\item{filename}{Character string specifying the output filename.
-Default is "output.html".}
+\item{filename}{A character string specifying the full output path 
+(e.g., "C:/LIMS/Reports/QC_Chart.html").}
 
-\item{libdir}{Character string specifying the directory name for external
-dependencies when creating non-self-contained HTML. Default is "output_files".
-Only used when pandoc is unavailable or fails.}
+\item{selfcontained}{Logical. If \code{TRUE} (default), all Javascript, 
+CSS, and images are embedded directly into the HTML file using Pandoc.}
 }
 \value{
-Invisibly returns NULL. The function is called for its side effects
-  of creating HTML files and printing status messages.
+The function returns the normalized path to the saved file invisibly.
 }
 \description{
-Attempts to save an HTML widget as a self-contained HTML file using pandoc.
-If pandoc is not available or fails to run, falls back to creating a
-non-self-contained HTML file with external dependencies in a separate folder.
+This function takes an htmlwidget or a tagList (processed via prependContent) 
+and saves it as a single, self-contained HTML file. It is optimized for 
+LabWare LIMS environments where external folder dependencies (like _files) 
+are often restricted.
 }
 \details{
-The function first checks if pandoc is available and executable. If found,
-it attempts to create a self-contained HTML file where all dependencies
-are embedded. If pandoc is not available or the self-contained approach fails,
-it creates a non-self-contained HTML file with dependencies stored in the
-specified `libdir` folder.
-
-When using the non-self-contained approach, make sure to distribute both
-the HTML file and the dependencies folder together.
+The function ensures the destination directory exists before saving. 
+If \code{selfcontained = TRUE} and Pandoc is not found on the system, 
+the function will throw an error. In a LIMS environment, ensure the 
+service account has write permissions to the destination folder.
 }
 \examples{
 \dontrun{
-# Create a simple plotly widget
-library(plotly)
-p <- plot_ly(mtcars, x = ~wt, y = ~mpg, type = "scatter", mode = "markers")
-
-# Save with default settings
-save_report_widget(p)
-
-# Save with custom filename
-save_report_widget(p, filename = "my_plot.html")
-
-# Save with custom filename and library directory
-save_report_widget(p,
-                  filename = "scatter_plot.html",
-                  libdir = "plot_dependencies")
-
-# Example with DT datatable
-library(DT)
-dt <- datatable(iris)
-save_report_widget(dt, filename = "iris_table.html")
+# Assuming 'output' is your assembled report layout
+save_report_widget(output, "D:/LIMS_DATA/QC_Report.html")
 }
-
-}
-\seealso{
-\code{\link[htmlwidgets]{saveWidget}} for the underlying widget saving function
-\code{\link[rmarkdown]{find_pandoc}} for pandoc detection
 }

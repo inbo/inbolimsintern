@@ -72,7 +72,7 @@ get_label_format <- function(conn, format_name) {
   format_df
 }
 
-#########################
+################################################################################
 
 #' Adjust label format positions to fit label height
 #'
@@ -103,45 +103,9 @@ adjust_label_positions <- function(format_lines, target_height_mm, original_heig
   return(format_lines)
 }
 
-########################
+################################################################################
 
-#' Generate Dynamic ZPL from LIMS Format Lines
-#'
-#' Iterates through label format definitions and maps them to sample data.
-#'
-#' @param data_row A single row of sample data (e.g., `SAMPLE_ID`, `PROJECT`).
-#' @param format_lines Dataframe. Rows from `T_LABEL_FORMAT_LINE` defining fields and positions.
-#' @param config List. The printer configuration object returned by `get_printer_config`.
-#' @param index Integer. Current label index in the batch.
-#' @param total Integer. Total labels in the batch.
-#'
-#' @return A character string of ZPL code for a single label.
-#' @export
-#' Generate Dynamic ZPL from LIMS Format Lines
-#'
-#' Iterates through label format definitions and maps them to sample data.
-#'
-#' @param data_row A single row of sample data (e.g., `SAMPLE_ID`, `PROJECT`).
-#' @param format_lines Dataframe. Rows from `T_LABEL_FORMAT_LINE` defining fields and positions.
-#' @param config List. The printer configuration object returned by `get_printer_config`.
-#' @param index Integer. Current label index in the batch.
-#' @param total Integer. Total labels in the batch.
-#'
-#' @return A character string of ZPL code for a single label.
-#' @export
-#' Generate Dynamic ZPL from LIMS Format Lines
-#'
-#' Iterates through label format definitions and maps them to sample data.
-#'
-#' @param data_row A single row of sample data (e.g., `SAMPLE_ID`, `PROJECT`).
-#' @param format_lines Dataframe. Rows from `T_LABEL_FORMAT_LINE` defining fields and positions.
-#' @param config List. The printer configuration object returned by `get_printer_config`.
-#' @param index Integer. Current label index in the batch.
-#' @param total Integer. Total labels in the batch.
-#'
-#' @return A character string of ZPL code for a single label.
-#' @export
-#' Generate Dynamic ZPL from LIMS Format Lines
+#' Create Dynamic ZPL from LIMS Format Lines
 #'
 #' Iterates through label format definitions and maps them to sample data.
 #'
@@ -155,10 +119,6 @@ adjust_label_positions <- function(format_lines, target_height_mm, original_heig
 #'
 #' @return A character string of ZPL code for a single label.
 #' @export
-#' Generate Dynamic ZPL from LIMS Format Lines
-#'
-#' @param apply_offsets Logical. Whether to apply TOP_OFFSET and LEFT_OFFSET from config. 
-#'        Set FALSE for preview, TRUE for physical printing.
 dynamic_label_template <- function(data_row, format_lines, config, index, total, 
                                    apply_offsets = FALSE) {
   
@@ -227,10 +187,10 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total,
   zpl <- c(zpl, "^XZ")
   paste(zpl, collapse = "")
 }
-############################################
 
-#' Process and Send Label Batch
-#'
+################################################################################
+
+
 #' Master function to handle API previews or direct network printing.
 #'
 #' @param dataset Dataframe. The sample data to print.
@@ -253,18 +213,6 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total,
 #' # Preview as PDF
 #' print_lims_labels(samples, p_cfg, f_lns, mode = "api", format = "pdf")
 #' }
-#' Process and Send Label Batch
-#'
-#' Master function to handle API previews or direct network printing.
-#'
-#' @param dataset Dataframe. The sample data to print.
-#' @param printer_config List. Hardware settings.
-#' @param format_lines Dataframe. Label design definitions.
-#' @param mode Character. "api" for preview, "real" for physical print.
-#' @param format Character. "png" (single) or "pdf" (batch) for API previews.
-#' @param output_path Character. Path to save the output file.
-#'
-#' @export
 print_lims_labels <- function(dataset, 
                               printer_config, 
                               format_lines, 

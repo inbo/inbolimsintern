@@ -4,7 +4,7 @@
 \alias{limsdb_connect}
 \title{Create a connection to the LIMS database}
 \usage{
-limsdb_connect(env = "PRD", connectlist = NULL)
+limsdb_connect(env = "PRD", connectlist = NULL, logfile = "limsdbconnect.log")
 }
 \arguments{
 \item{env}{which environment PRD, UAT, DEV or LW7}

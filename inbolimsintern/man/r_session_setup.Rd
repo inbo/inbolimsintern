@@ -6,9 +6,7 @@
 \usage{
 r_session_setup(
   args = commandArgs(trailingOnly = TRUE),
-  logfile = "lims_rsession.log",
-  test_mode = FALSE,
-  cred_file = "dbcredentials.txt"
+  logfile = "lims_rsession.log"
 )
 }
 \arguments{

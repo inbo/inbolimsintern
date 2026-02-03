@@ -10,8 +10,7 @@ write_db_log(
   call_id = NULL,
   user_name = NULL,
   conn = NULL,
-  extra = "",
-  print_log = TRUE
+  extra = ""
 )
 }
 \arguments{
