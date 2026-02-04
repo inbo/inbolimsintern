@@ -119,82 +119,69 @@ adjust_label_positions <- function(format_lines, target_height_mm, original_heig
 #'
 #' @return A character string of ZPL code for a single label.
 #' @export
-dynamic_label_template <- function(data_row, format_lines, config, index, total, 
-                                   apply_offsets = FALSE) {
+dynamic_label_template <- function(data_row, format_lines, config, index, total) {
   
-  dpmm <- as.numeric(config$DPI) / 25.4
-  len <- round(config$WIDTH * dpmm)
-  hgt <- round(config$LENGTH * dpmm)
+  dpmm <- as.numeric(config$DPI) / 25.4 
+  len_dots <- round(as.numeric(config$WIDTH) * dpmm)
+  hgt_dots <- round(as.numeric(config$LENGTH) * dpmm)
   
-  # Only apply offsets if requested (typically for physical printer calibration)
-  top_offset <- if (apply_offsets && !is.na(config$TOP_OFFSET)) config$TOP_OFFSET else 0
-  left_offset <- if (apply_offsets && !is.na(config$LEFT_OFFSET)) config$LEFT_OFFSET else 0
+  # --- DYNAMIC OFFSET CALCULATION ---
+  # Find the maximum Y-coordinate used in the format lines (in mm)
+  # Max Y = Top Position + Height of the tallest field
+  max_content_y_mm <- max(format_lines$TOP_POSITION + format_lines$FONT_HEIGHT)
   
-
-  # Initialize ZPL with printer settings
+  # Determine if we need to reduce the 5mm offset to prevent overflow
+  # Content height + Offset must be <= Label Length (31.75mm)
+  current_offset <- as.numeric(config$TOP_OFFSET)
+  if ((max_content_y_mm + current_offset) > as.numeric(config$LENGTH)) {
+    # Reduce offset to the remaining available space, minimum of 0
+    current_offset <- max(0, as.numeric(config$LENGTH) - max_content_y_mm)
+    message("Label ", index, ": Content overflow detected. Reducing TOP_OFFSET to ", round(current_offset, 2), "mm")
+  }
+  
   zpl <- c(
-    "^XA",
-    "^MCY", # Clears storage to prevent the 'missing last label' buffer issue
-    "^MTT",
-    "^MNY",
+    "^XA", "^MCY", "^MTT", "^MNY",
     glue::glue("^MD{config$DARKNESS}"),
     glue::glue("^PR{config$PRINT_RATE}"),
-    glue::glue("^PW{len}"),
-    glue::glue("^LL{hgt}")
+    glue::glue("^PW{len_dots}"),
+    glue::glue("^LL{hgt_dots}")
   )
-  # 
-  # Process each format line
+  
   for (i in seq_len(nrow(format_lines))) {
     line <- format_lines[i, ]
     
-    # Apply offsets only if requested
-    x <- round((line$LEFT_POSITION + left_offset) * dpmm)
-    y <- round((line$TOP_POSITION + top_offset) * dpmm)
+    # Apply the dynamically adjusted offset
+    x <- round((line$LEFT_POSITION + config$LEFT_OFFSET) * dpmm)
+    y <- round((line$TOP_POSITION + current_offset) * dpmm)
     
-    # Get content from data row
-    content <- data_row[[line$FIELD_NAME]]
-    if (is.null(content) || is.na(content)) content <- ""
+    content <- as.character(data_row[[line$FIELD_NAME]])
+    if (length(content) == 0 || is.na(content)) content <- ""
     
     if (grepl("CODE_128", line$FONT, ignore.case = TRUE)) {
-      bar_height <- round(line$FONT_HEIGHT * dpmm)
-      bar_module_width <- 2
-      
+      bar_h <- round(line$FONT_HEIGHT * dpmm)
       zpl <- c(zpl,
-               glue::glue("^BY{bar_module_width},2.5,{bar_height}"),
-               glue::glue("^FO{x},{y}^BC{line$ORIENTATION},,N,N,N^FD{content}^FS")
-      )
+               glue::glue("^BY2,2.0,{bar_h}"),
+               glue::glue("^FO{x},{y}^BC{line$ORIENTATION},,N,N,N^FD{content}^FS"))
     } else {
-      h <- round(line$FONT_HEIGHT * dpmm)
-      w <- round(line$FONT_WIDTH * dpmm)
+      f_h <- round(line$FONT_HEIGHT * dpmm)
+      f_w <- round(line$FONT_WIDTH * dpmm)
       
-      max_width <- if (!is.na(line$BLOCK_WIDTH) && line$BLOCK_WIDTH > 0) {
-        round(line$BLOCK_WIDTH)
+      # Guard: 700/500 BLOCK_WIDTH are dots, don't multiply by dpmm
+      if (!is.na(line$BLOCK_WIDTH) && line$BLOCK_WIDTH > 0) {
+        b_w <- if(line$BLOCK_WIDTH > 100) round(line$BLOCK_WIDTH) else round(line$BLOCK_WIDTH * dpmm)
+        b_w <- min(b_w, len_dots - x - 10) # 10 dot margin on right
+        
+        justify <- if(!is.na(line$JUSTIFY)) substr(line$JUSTIFY, 1, 1) else "L"
+        zpl <- c(zpl, glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{f_h},{f_w}^FB{b_w},1,0,{justify},0^FD{content}^FS"))
       } else {
-        NULL
-      }
-      
-      if (!is.null(max_width)) {
-        justify <- ifelse(!is.na(line$JUSTIFY), substr(line$JUSTIFY, 1, 1), "L")
-        zpl <- c(zpl,
-                 glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{h},{w}^FB{max_width},1,0,{justify},0^FD{content}^FS")
-        )
-      } else if (w == 0 || w == h) {
-        zpl <- c(zpl,
-                 glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{h}^FD{content}^FS")
-        )
-      } else {
-        zpl <- c(zpl,
-                 glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{h},{w}^FD{content}^FS")
-        )
+        zpl <- c(zpl, glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{f_h},{f_w}^FD{content}^FS"))
       }
     }
   }
   
   zpl <- c(zpl, "^XZ")
-  zpl <- paste(zpl, collapse = "\n")
-  zpl
+  return(paste0(paste(zpl, collapse = "\n"), "\n"))
 }
-
 ################################################################################
 
 
@@ -221,9 +208,8 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total,
 #' # Preview as PDF
 #' print_lims_labels(samples, p_cfg, f_lns, mode = "api", format = "pdf")
 #' }
-print_lims_labels <- function(dataset, 
-                              printer_config, 
-                              format_lines, 
+#' @export
+print_lims_labels <- function(dataset, printer_config, format_lines, 
                               mode = c("api", "real"), 
                               abort_real_show_payload = FALSE,
                               format = c("png", "pdf"),
@@ -232,260 +218,54 @@ print_lims_labels <- function(dataset,
   mode <- match.arg(mode)
   format <- match.arg(format)
   
-  # Calculate dimensions
-  dpmm_val <- round(as.numeric(printer_config$DPI) / 25.4)
-  width_in <- round(printer_config$WIDTH / 25.4, 2)
-  height_in <- round(printer_config$LENGTH / 25.4, 2)
-  
-  # Generate ZPL for all labels
+  # Generate ZPL list
   zpl_list <- lapply(seq_len(nrow(dataset)), function(i) {
     dynamic_label_template(dataset[i, ], format_lines, printer_config, i, nrow(dataset))
   })
-  # New version (guarantees the printer flushes the last label)
-  full_payload <- paste0(paste(zpl_list, collapse = "\n"), "\n")
   
   if (mode == "api") {
-    # Build Labelary URL - FIXED for PDF
-    if (format == "pdf") {
-      # For PDF: use special endpoint with .pdf extension
-      url <- sprintf("http://api.labelary.com/v1/printers/%ddpmm/labels/%sx%s/0/label.pdf",
-                     dpmm_val, width_in, height_in)
-    } else {
-      # For PNG: standard endpoint
-      url <- sprintf("http://api.labelary.com/v1/printers/%ddpmm/labels/%sx%s/0/",
-                     dpmm_val, width_in, height_in)
-    }
+    # Combine all labels for the API
+    full_payload <- paste(zpl_list, collapse = "\n")
     
-    # Make API request with proper headers
+    # 300 DPI corresponds to 12 dpmm in Labelary
+    # Dimensions: 69.85mm x 31.75mm is approx 2.75 x 1.25 inches
+    url <- "http://api.labelary.com/v1/printers/12dpmm/labels/2.75x1.25/"
+    
     res <- httr::POST(
       url, 
-      body = full_payload,
-      httr::add_headers(
-        "Accept" = if (format == "pdf") "application/pdf" else "image/png",
-        "Content-Type" = "application/x-www-form-urlencoded"
-      ),
-      encode = "raw"
+      body = full_payload, 
+      encode = "raw",
+      httr::add_headers("Accept" = if(format == "pdf") "application/pdf" else "image/png")
     )
     
-    # Check for errors
-    if (httr::status_code(res) != 200) {
-      error_msg <- httr::content(res, "text", encoding = "UTF-8")
-      stop(
-        "Labelary API Error (", httr::status_code(res), "): ", error_msg,
-        "\nURL: ", url,
-        "\nDPI: ", printer_config$DPI, 
-        ", Width: ", printer_config$WIDTH, "mm",
-        ", Height: ", printer_config$LENGTH, "mm",
-        "\nDPMM: ", dpmm_val,
-        ", Width(in): ", width_in,
-        ", Height(in): ", height_in
-      )
-    }
+    if (httr::status_code(res) != 200) stop("API Error: ", httr::content(res, "text"))
     
-    # Get the response content
     content_raw <- httr::content(res, "raw")
-    
-    # Verify we got the right content type
-    content_type <- httr::headers(res)$`content-type`
-    message("Received content type: ", content_type)
-    
-    # Save and display output
     if (format == "pdf") {
-      # Ensure directory exists
-      output_dir <- dirname(output_path)
-      if (!dir.exists(output_dir)) {
-        dir.create(output_dir, recursive = TRUE)
-      }
-      
-      # Verify it's actually a PDF
-      if (!grepl("application/pdf", content_type)) {
-        warning("Expected PDF but got: ", content_type)
-        # Save anyway but with .png extension
-        output_path <- sub("\\.pdf$", ".png", output_path)
-      }
-      
       writeBin(content_raw, output_path)
-      message("File saved to: ", output_path)
-      message("File size: ", length(content_raw), " bytes")
-      
-      # Open if on Windows
-      if (.Platform$OS.type == "windows") {
-        tryCatch({
-          shell.exec(normalizePath(output_path))
-        }, error = function(e) {
-          message("Could not open file automatically: ", e$message)
-          message("Please open manually: ", normalizePath(output_path))
-        })
-      }
+      message("Success! Multi-page PDF created at: ", output_path)
+      if (.Platform$OS.type == "windows") shell.exec(normalizePath(output_path))
     } else {
-      # PNG preview
+      # For PNG, RStudio viewer will show the first label of the batch
       tmp <- tempfile(fileext = ".png")
       writeBin(content_raw, tmp)
-      message("PNG saved to: ", tmp)
-      
-      if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
-        rstudioapi::viewer(tmp)
-      }
+      rstudioapi::viewer(tmp)
     }
     
-  } else { #mode is real
-    
-    test_labels <<- full_payload
-    
+  } else {
     if (abort_real_show_payload) {
-      cat(full_payload)
-      return(invisible(full_payload))  
+      cat(paste(zpl_list, collapse = "\n---\n"))
+      return(invisible(zpl_list))
     }
     
-    # Direct network printing
+    # Real Printer: One-by-One Loop
     printer_path <- paste0("\\\\inbo-print-pr\\", printer_config$PRINTER_PORT)
-    tmp_zpl <- tempfile(fileext = ".zpl")
-    writeLines(full_payload, tmp_zpl)
-    
-    result <- shell(paste0('copy /B "', tmp_zpl, '" "', printer_path, '"'), 
-                    intern = TRUE)
-    
-    if (length(result) > 0) {
-      message("Label sent to printer: ", printer_config$PRINTER_PORT)
+    for (i in seq_along(zpl_list)) {
+      tmp_zpl <- tempfile(fileext = ".zpl")
+      writeLines(zpl_list[[i]], tmp_zpl)
+      shell(paste0('copy /B "', tmp_zpl, '" "', printer_path, '"'), intern = TRUE)
+      Sys.sleep(0.4) 
     }
   }
-  
-  invisible(full_payload)
+  invisible(zpl_list)
 }
-
-
-##############################################################################
-
-#' Generate Dynamic ZPL with Diagnostics
-dynamic_label_template_debug <- function(data_row, format_lines, config, index, total) {
-  
-  dpmm <- as.numeric(config$DPI) / 25.4
-  
-  message("=== Label Generation Debug ===")
-  message("DPI: ", config$DPI, " | DPMM: ", round(dpmm, 2))
-  message("Label size: ", config$WIDTH, "mm x ", config$LENGTH, "mm")
-  message("Label size (dots): ", round(config$WIDTH * dpmm), " x ", round(config$LENGTH * dpmm))
-  
-  # Initialize ZPL with printer settings
-  zpl <- c(
-    "^XA",
-    glue::glue("^MD{config$DARKNESS}"),
-    glue::glue("^PR{config$PRINT_RATE}"),
-    glue::glue("^PW{round(config$WIDTH * dpmm)}"),
-    glue::glue("^LL{round(config$LENGTH * dpmm)}")
-  )
-  
-  # Process each format line
-  for (i in seq_len(nrow(format_lines))) {
-    line <- format_lines[i, ]
-    
-    # Calculate positions
-    x <- round((line$LEFT_POSITION + config$LEFT_OFFSET) * dpmm)
-    y <- round((line$TOP_POSITION + config$TOP_OFFSET) * dpmm)
-    
-    content <- data_row[[line$FIELD_NAME]]
-    if (is.null(content) || is.na(content)) content <- ""
-    
-    if (grepl("CODE_128", line$FONT, ignore.case = TRUE)) {
-      bar_height <- round(line$FONT_HEIGHT * dpmm)
-      bar_module_width <- max(2, min(4, round(line$FONT_WIDTH)))
-      
-      message("\nBarcode: ", line$FIELD_NAME)
-      message("  Position: (", x, ", ", y, ") dots = (", line$LEFT_POSITION, ", ", line$TOP_POSITION, ") mm")
-      message("  Height: ", bar_height, " dots = ", line$FONT_HEIGHT, "mm")
-      message("  Module width: ", bar_module_width)
-      message("  Content: ", content)
-      
-      zpl <- c(zpl,
-               glue::glue("^BY{bar_module_width},2.5,{bar_height}"),
-               glue::glue("^FO{x},{y}^BC{line$ORIENTATION},,N,N,N^FD{content}^FS")
-      )
-    } else {
-      h <- round(line$FONT_HEIGHT * dpmm)
-      w <- round(line$FONT_WIDTH * dpmm)
-      
-      message("\nText: ", line$FIELD_NAME)
-      message("  Position: (", x, ", ", y, ") dots = (", line$LEFT_POSITION, ", ", line$TOP_POSITION, ") mm")
-      message("  Height: ", h, " dots = ", line$FONT_HEIGHT, "mm")
-      message("  Width: ", w, " dots = ", line$FONT_WIDTH, "mm")
-      message("  Content: ", content)
-      
-      if (w == 0 || w == h) {
-        zpl <- c(zpl,
-                 glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{h}^FD{content}^FS")
-        )
-      } else {
-        zpl <- c(zpl,
-                 glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{h},{w}^FD{content}^FS")
-        )
-      }
-    }
-  }
-  
-  zpl <- c(zpl, "^XZ")
-  result <- paste(zpl, collapse = "")
-  
-  message("\n=== Generated ZPL ===")
-  message(result)
-  message("=====================\n")
-  
-  result
-}
-
-# Test with debug version
-print_lims_labels_debug <- function(dataset, printer_config, format_lines, 
-                                    mode = "api", format = "png",
-                                    output_path = "C:/Labels/label_output.pdf") {
-  
-  # Use debug template
-  zpl <- dynamic_label_template_debug(dataset[1, ], format_lines, printer_config, 1, nrow(dataset))
-  
-  # Continue with normal API call...
-  mode <- match.arg(mode, c("api", "real"))
-  format <- match.arg(format, c("png", "pdf"))
-  
-  dpmm_val <- round(as.numeric(printer_config$DPI) / 25.4)
-  width_in <- round(printer_config$WIDTH / 25.4, 2)
-  height_in <- round(printer_config$LENGTH / 25.4, 2)
-  
-  if (mode == "api") {
-    if (format == "pdf") {
-      url <- sprintf("http://api.labelary.com/v1/printers/%ddpmm/labels/%sx%s/0/label.pdf",
-                     dpmm_val, width_in, height_in)
-    } else {
-      url <- sprintf("http://api.labelary.com/v1/printers/%ddpmm/labels/%sx%s/0/",
-                     dpmm_val, width_in, height_in)
-    }
-    
-    res <- httr::POST(
-      url, 
-      body = zpl,
-      httr::add_headers(
-        "Accept" = if (format == "pdf") "application/pdf" else "image/png",
-        "Content-Type" = "application/x-www-form-urlencoded"
-      ),
-      encode = "raw"
-    )
-    
-    if (httr::status_code(res) != 200) {
-      stop("Labelary API Error (", httr::status_code(res), ")")
-    }
-    
-    content_raw <- httr::content(res, "raw")
-    
-    if (format == "pdf") {
-      writeBin(content_raw, output_path)
-      shell.exec(normalizePath(output_path))
-    } else {
-      tmp <- tempfile(fileext = ".png")
-      writeBin(content_raw, tmp)
-      if (requireNamespace("rstudioapi", quietly = TRUE)) {
-        rstudioapi::viewer(tmp)
-      }
-    }
-  }
-  
-  invisible(zpl)
-}
-
-#print_lims_labels_debug(samples, p_cfg, f_lns, mode = "api", format = "png")

@@ -4,7 +4,7 @@ library(inbolimsintern)
 #log_message("Setting up R session...")
 args <- commandArgs(trailingOnly = TRUE)
 setup <- try(r_session_setup(args), silent = TRUE)
-#library(inbolimsintern);args <- c("LWL8PRD", "11217", "PIETERVS");setup <- try(r_session_setup(args))
+#library(inbolimsintern);args <- c("LWL8PRD", "11218", "PIETERVS");setup <- try(r_session_setup(args))
 
 #log_message(paste("Arguments:", paste(args, collapse = ", ")))
 if (inherits(setup, "try-error")) {
@@ -22,10 +22,10 @@ write_db_log("R session initialized", "P")
 ##=====================
 
 qry = paste("select [PROJECT], [TEXT_ID], [SAMPLE_ID] , [USER],",
-            "[CALL_ID], [PRINTER], [LABELFORMAAT]", 
+            "[CALL_ID], [PRINTER], [LABELFORMAAT], [SMP_ORDER], [REP]", 
             " from C_TMP_LABEL_PROCESSI ",
             " where CALL_ID = ", call_id, 
-            " order by rep, ID")
+            " order by SMP_ORDER, REP, TEXT_ID")
 data <- DBI::dbGetQuery(conn, qry)
 if (nrow(data) == 0){
   write_db_log("Geen labels gevonden", "E")
@@ -43,7 +43,7 @@ layout <- data[1, "LABELFORMAAT"]
 printer_config <- get_printer_config(conn, printer)
 format_lines <- get_label_format(conn, layout)
 
-#print_lims_labels(testdata, printer_config, format_lines, mode = "api", format = "png")
+#print_lims_labels(data, printer_config, format_lines, mode = "api", format = "png")
 debugmode <- TRUE
 e <- try({
   print_lims_labels(

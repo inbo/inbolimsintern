@@ -4,14 +4,7 @@
 \alias{dynamic_label_template}
 \title{Create Dynamic ZPL from LIMS Format Lines}
 \usage{
-dynamic_label_template(
-  data_row,
-  format_lines,
-  config,
-  index,
-  total,
-  apply_offsets = FALSE
-)
+dynamic_label_template(data_row, format_lines, config, index, total)
 }
 \arguments{
 \item{data_row}{A single row of sample data (e.g., `SAMPLE_ID`, `PROJECT`).}
