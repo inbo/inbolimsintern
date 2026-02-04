@@ -123,20 +123,26 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total,
                                    apply_offsets = FALSE) {
   
   dpmm <- as.numeric(config$DPI) / 25.4
+  len <- round(config$WIDTH * dpmm)
+  hgt <- round(config$LENGTH * dpmm)
   
   # Only apply offsets if requested (typically for physical printer calibration)
   top_offset <- if (apply_offsets && !is.na(config$TOP_OFFSET)) config$TOP_OFFSET else 0
   left_offset <- if (apply_offsets && !is.na(config$LEFT_OFFSET)) config$LEFT_OFFSET else 0
   
+
   # Initialize ZPL with printer settings
   zpl <- c(
     "^XA",
+    "^MCY", # Clears storage to prevent the 'missing last label' buffer issue
+    "^MTT",
+    "^MNY",
     glue::glue("^MD{config$DARKNESS}"),
     glue::glue("^PR{config$PRINT_RATE}"),
-    glue::glue("^PW{round(config$WIDTH * dpmm)}"),
-    glue::glue("^LL{round(config$LENGTH * dpmm)}")
+    glue::glue("^PW{len}"),
+    glue::glue("^LL{hgt}")
   )
-  
+  # 
   # Process each format line
   for (i in seq_len(nrow(format_lines))) {
     line <- format_lines[i, ]
@@ -185,7 +191,8 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total,
   }
   
   zpl <- c(zpl, "^XZ")
-  paste(zpl, collapse = "")
+  zpl <- paste(zpl, collapse = "\n")
+  zpl
 }
 
 ################################################################################
@@ -199,6 +206,7 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total,
 #' @param mode Character. "api" for preview, "real" for physical print.
 #' @param format Character. "png" (single) or "pdf" (batch) for API previews.
 #' @param output_path Character. Path to save the output file.
+#' @param abort_real_show_payload stop just before printing on the printer and show the payload that would be sent
 #'
 #' @export
 #' @examples
@@ -217,6 +225,7 @@ print_lims_labels <- function(dataset,
                               printer_config, 
                               format_lines, 
                               mode = c("api", "real"), 
+                              abort_real_show_payload = FALSE,
                               format = c("png", "pdf"),
                               output_path = "C:/Labels/label_output.pdf") {
   
@@ -232,7 +241,8 @@ print_lims_labels <- function(dataset,
   zpl_list <- lapply(seq_len(nrow(dataset)), function(i) {
     dynamic_label_template(dataset[i, ], format_lines, printer_config, i, nrow(dataset))
   })
-  full_payload <- paste(zpl_list, collapse = "\n")
+  # New version (guarantees the printer flushes the last label)
+  full_payload <- paste0(paste(zpl_list, collapse = "\n"), "\n")
   
   if (mode == "api") {
     # Build Labelary URL - FIXED for PDF
@@ -318,7 +328,15 @@ print_lims_labels <- function(dataset,
       }
     }
     
-  } else {
+  } else { #mode is real
+    
+    test_labels <<- full_payload
+    
+    if (abort_real_show_payload) {
+      cat(full_payload)
+      return(invisible(full_payload))  
+    }
+    
     # Direct network printing
     printer_path <- paste0("\\\\inbo-print-pr\\", printer_config$PRINTER_PORT)
     tmp_zpl <- tempfile(fileext = ".zpl")
