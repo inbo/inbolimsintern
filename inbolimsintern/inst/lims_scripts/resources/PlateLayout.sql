@@ -1,132 +1,91 @@
 
-WITH ResultData AS (
+WITH PlateBase AS (
     SELECT 
-        s.SAMPLE_NUMBER,
-        MAX(CASE WHEN r.NAME = 'DNA' THEN r.ENTRY END) AS DNA,
-        MAX(CASE WHEN r.NAME = 'MILLIQ' THEN r.ENTRY END) AS MilliQ
-    FROM SAMPLE s
-    JOIN TEST t ON t.SAMPLE_NUMBER = s.SAMPLE_NUMBER
-    JOIN ANALYSIS a ON a.NAME = t.ANALYSIS AND a.VERSION = t.VERSION
-    JOIN RESULT r ON r.TEST_NUMBER = t.TEST_NUMBER
-                 AND r.NAME IN ('MILLIQ', 'DNA') 
-                 AND r.STATUS <> 'X'              
-    WHERE s.PROJECT = <<ProjectName>>              
-      AND a.ANALYSIS_TYPE = 'DNA_TEMPLATE'        
-    GROUP BY s.SAMPLE_NUMBER
-),
-
-QCValues AS (
-    SELECT TOP 1 
-        TRY_CAST(rd.DNA AS FLOAT) as DNA,         
-        TRY_CAST(rd.MilliQ AS FLOAT) as MilliQ    
-    FROM SAMPLE s
-    JOIN ResultData rd ON rd.SAMPLE_NUMBER = s.SAMPLE_NUMBER
-    WHERE s.SAMPLE_TYPE = 'QC_METHOD'            
-      AND s.PROJECT = <<ProjectName>>
-),
-
-BaseData AS (
-    SELECT 
-        pp.PLATE,
-        CHAR(pp.ROW_NUMBER + 64) AS CAPILAR_LETTER,  
+        s.SAMPLE_NUMBER, 
+        s.TEXT_ID, 
+        s.SAMPLE_TYPE, 
+        s.STATUS, 
+        s.PARENT_SAMPLE, 
+        p.NAME AS plate, 
+        p.BATCH_NAME AS BATCHNR,
+        s2.TEXT_ID AS parent_text_id,
+        pp.ROW_NUMBER,
         pp.COLUMN_NUMBER AS LANE,
-        s.SAMPLE_TYPE,                                
-        s.TEXT_ID,
-        s.SAMPLE_NUMBER,
-        s.PARENT_SAMPLE,                             
-        ps.TEXT_ID AS PARENT_TEXT_ID,                 
-        rd.DNA,                                        
-        rd.MilliQ,                                    
-        prd.DNA AS DNApar,                            
-        prd.MilliQ AS MilliQpar                       
-    FROM PLATE plt
-    JOIN PLATE_POSITION pp ON plt.NAME = pp.PLATE
-    JOIN SAMPLE s ON pp.SAMPLE_NUMBER = s.SAMPLE_NUMBER
-                 AND s.PROJECT = <<ProjectName>>       
-    LEFT JOIN SAMPLE ps ON s.PARENT_SAMPLE = ps.SAMPLE_NUMBER  
-    LEFT JOIN ResultData rd ON s.SAMPLE_NUMBER = rd.SAMPLE_NUMBER  
-    LEFT JOIN ResultData prd ON s.PARENT_SAMPLE = prd.SAMPLE_NUMBER  
-    WHERE plt.BATCH_NAME = <<BatchName>>                       
+        -- Identify the "Family Root" (The Parent ID) for location lookups
+        CASE WHEN s.PARENT_SAMPLE > 0 THEN s.PARENT_SAMPLE ELSE s.SAMPLE_NUMBER END AS FamilyID,
+        -- Row 1 Display ID
+        CAST(s.TEXT_ID AS VARCHAR(50)) + 
+            CASE WHEN s.SAMPLE_TYPE IN ('S', 'SUBSAMPLE') THEN 'S' ELSE '' END AS DisplayID
+    FROM sample s
+    INNER JOIN plate p ON s.project = p.project  
+        AND s.project = <<projectName>> 
+        AND p.BATCH_NAME = <<batchName>>
+        AND s.status <> 'X'
+    INNER JOIN plate_position pp ON s.SAMPLE_NUMBER = pp.SAMPLE_NUMBER AND pp.PLATE = p.NAME
+    LEFT JOIN sample s2 ON s.PARENT_SAMPLE = s2.SAMPLE_NUMBER
 ),
 
-LocationData AS (
+FamilyLocations AS (
     SELECT 
-        b.SAMPLE_NUMBER,
+        pb.SAMPLE_NUMBER,
         STUFF((
-            SELECT ' ' + CAST(s2.C_PLATE_SHORT AS VARCHAR(10)) +  
-                   CHAR(pp2.ROW_NUMBER + 64) +                      
-                   RIGHT('0' + CAST(pp2.COLUMN_NUMBER AS VARCHAR(2)), 2)  
-            FROM SAMPLE s2
-            JOIN PLATE_POSITION pp2 ON pp2.SAMPLE_NUMBER = s2.SAMPLE_NUMBER
-            WHERE (s2.SAMPLE_NUMBER = b.PARENT_SAMPLE          
-                   OR s2.PARENT_SAMPLE = b.PARENT_SAMPLE)      
-              AND s2.PROJECT = <<ProjectName>>  
-              AND s2.SAMPLE_NUMBER <> b.SAMPLE_NUMBER          
-            FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 
-        1, 1, '') AS AllLocs  
-    FROM BaseData b
-    WHERE b.SAMPLE_TYPE = 'SUBSAMPLE'
-    
-    UNION ALL
+            SELECT ' ' + CAST(ISNULL(s_rel.C_PLATE_SHORT, '??') AS VARCHAR(10)) +  -- pp
+                   CHAR(pp_rel.ROW_NUMBER + 64) +                                 -- c
+                   RIGHT('0' + CAST(pp_rel.COLUMN_NUMBER AS VARCHAR(2)), 2)       -- ll
+            FROM sample s_rel
+            JOIN plate_position pp_rel ON s_rel.SAMPLE_NUMBER = pp_rel.SAMPLE_NUMBER
+            WHERE (s_rel.SAMPLE_NUMBER = pb.FamilyID OR s_rel.PARENT_SAMPLE = pb.FamilyID)
+              AND s_rel.SAMPLE_NUMBER <> pb.SAMPLE_NUMBER -- Exclude "self"
+              AND s_rel.PROJECT = <<projectName>>
+            FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS AllLocs
+    FROM PlateBase pb
+),
+
+ResultData AS (
     SELECT 
-        b.SAMPLE_NUMBER,
-        STUFF((
-            SELECT ' ' + CAST(s2.C_PLATE_SHORT AS VARCHAR(10)) +   
-                   CHAR(pp2.ROW_NUMBER + 64) +                      
-                   RIGHT('0' + CAST(pp2.COLUMN_NUMBER AS VARCHAR(2)), 2)  
-            FROM SAMPLE s2
-            JOIN PLATE_POSITION pp2 ON pp2.SAMPLE_NUMBER = s2.SAMPLE_NUMBER
-            WHERE s2.PARENT_SAMPLE = b.SAMPLE_NUMBER           
-              AND s2.PROJECT = <<ProjectName>>  
-              AND s2.SAMPLE_TYPE = 'SUBSAMPLE'                 
-            FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 
-        1, 1, '') AS AllLocs 
-    FROM BaseData b
-    WHERE b.SAMPLE_TYPE <> 'SUBSAMPLE'                        
-      AND b.PARENT_SAMPLE = 0                           
+        r.SAMPLE_NUMBER,
+        MAX(CASE WHEN r.NAME = 'MILLIQ' THEN r.ENTRY END) AS MilliQVal,
+        MAX(CASE WHEN r.NAME = 'DNA' THEN r.ENTRY END) AS DNAVal
+    FROM RESULT r
+    WHERE r.NAME IN ('MILLIQ', 'DNA') AND r.STATUS <> 'X'
+    GROUP BY r.SAMPLE_NUMBER
+),
+
+FullDataset AS (
+    SELECT 
+        pb.*,
+        fl.AllLocs,
+        COALESCE(rd_self.MilliQVal, rd_parent.MilliQVal, '0') AS FinalMilliQ,
+        COALESCE(rd_self.DNAVal, rd_parent.DNAVal, '0') AS FinalDNA
+    FROM PlateBase pb
+    LEFT JOIN FamilyLocations fl ON pb.SAMPLE_NUMBER = fl.SAMPLE_NUMBER
+    LEFT JOIN ResultData rd_self ON pb.SAMPLE_NUMBER = rd_self.SAMPLE_NUMBER
+    LEFT JOIN ResultData rd_parent ON pb.PARENT_SAMPLE = rd_parent.SAMPLE_NUMBER
 )
 
 SELECT 
-    b.PLATE, 
-    b.CAPILAR_LETTER AS CAPILAR, 
-    b.LANE,
+    fd.plate,
+    CHAR(fd.ROW_NUMBER + 64) AS CAPILAR,
+    fd.LANE,
     d.RowSequence,
     d.Content
-FROM BaseData b
-LEFT JOIN LocationData ld ON b.SAMPLE_NUMBER = ld.SAMPLE_NUMBER
+FROM FullDataset fd
 CROSS APPLY (
-    SELECT 1, CAST(b.TEXT_ID AS VARCHAR(50)) + 
-              CASE WHEN b.SAMPLE_TYPE = 'SUBSAMPLE' THEN 'S' ELSE '' END
+    SELECT 1, fd.DisplayID
     
     UNION ALL
-
-    SELECT 2, '(' + CAST(b.PARENT_TEXT_ID AS VARCHAR(50)) + ')' 
-    WHERE b.SAMPLE_TYPE = 'SUBSAMPLE'
+    SELECT 2, '(' + fd.parent_text_id + ')'
+    WHERE fd.SAMPLE_TYPE IN ('S', 'SUBSAMPLE') AND fd.parent_text_id IS NOT NULL
     
     UNION ALL
-
-    SELECT 3, LEFT(ISNULL(ld.AllLocs, ''), 12) 
-    WHERE ld.AllLocs IS NOT NULL AND LEN(ld.AllLocs) > 0
+    SELECT 3, LEFT(fd.AllLocs, 11) 
+    WHERE LEN(fd.AllLocs) > 0
     
     UNION ALL
-
-    SELECT 4, SUBSTRING(ISNULL(ld.AllLocs, ''), 14, 12) 
-    WHERE ld.AllLocs IS NOT NULL AND LEN(ld.AllLocs) >= 14
+    SELECT 4, SUBSTRING(fd.AllLocs, 13, 11) 
+    WHERE LEN(fd.AllLocs) >= 13
     
     UNION ALL
-
-    SELECT 5, 'M ' + CAST(ROUND(COALESCE(
-        CASE 
-            WHEN b.SAMPLE_TYPE = 'BLANK' THEN 0 
-            WHEN b.SAMPLE_TYPE = 'QC_METHOD' THEN (SELECT MilliQ FROM QCValues)
-            ELSE COALESCE(TRY_CAST(b.MilliQ AS FLOAT), TRY_CAST(b.MilliQpar AS FLOAT))
-        END, 0), 2) AS VARCHAR(10)) + 
-              ' D ' + CAST(ROUND(COALESCE(
-        CASE 
-            WHEN b.SAMPLE_TYPE = 'BLANK' THEN 0 
-            WHEN b.SAMPLE_TYPE = 'QC_METHOD' THEN (SELECT DNA FROM QCValues)
-            ELSE COALESCE(TRY_CAST(b.DNA AS FLOAT), TRY_CAST(b.DNApar AS FLOAT))
-        END, 0), 2) AS VARCHAR(10))
+    SELECT 5, 'M ' + LEFT(fd.FinalMilliQ, 4) + ' D ' + LEFT(fd.FinalDNA, 4)
 ) AS d(RowSequence, Content)
-ORDER BY b.PLATE, b.CAPILAR_LETTER, b.LANE, d.RowSequence
-
+ORDER BY fd.plate, fd.ROW_NUMBER, fd.LANE, d.RowSequence

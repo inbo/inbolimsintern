@@ -23,7 +23,7 @@ library(inbolimsintern)
 
 #log_message("Setting up R session...")
 args <- commandArgs(trailingOnly = TRUE)
-#library(inbolimsintern);library(htmltools); args <- c("LWL8PRD", "11268", "PIETERVS")
+#library(inbolimsintern);library(htmltools); args <- c("LWL8PRD", "11284", "PIETERVS")
 fig_height <- 600
 
 setup <- try(r_session_setup(args), silent = TRUE)
