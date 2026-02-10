@@ -2,7 +2,7 @@
 % Please edit documentation in R/zzy_copy_and_update_scripts.R
 \name{copy_and_update_scripts}
 \alias{copy_and_update_scripts}
-\title{Copy package scripts to a single LIMS path if they are outdated.}
+\title{Copy package scripts and resources to a single LIMS path if they are outdated.}
 \usage{
 copy_and_update_scripts(target_path)
 }
@@ -16,5 +16,6 @@ A single logical value: `TRUE` if scripts were successfully updated
 \description{
 This function compares MD5 hashes of scripts in the package's 'inst/lims_scripts'
 directory with those in the target LIMS path. If they differ, it backs up the
-existing scripts and copies the new ones over.
+existing scripts and copies the new ones over. It also copies the 'resources'
+folder and its contents to the target path.
 }

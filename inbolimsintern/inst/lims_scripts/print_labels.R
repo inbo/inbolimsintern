@@ -43,8 +43,8 @@ layout <- data[1, "LABELFORMAAT"]
 printer_config <- get_printer_config(conn, printer)
 format_lines <- get_label_format(conn, layout)
 
-#print_lims_labels(data, printer_config, format_lines, mode = "api", format = "png")
-debugmode <- TRUE
+#print_lims_labels(data, printer_config, format_lines, mode = "api", format = "pdf")
+debugmode <- FALSE
 e <- try({
   print_lims_labels(
     data,

@@ -125,35 +125,31 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total)
   len_dots <- round(as.numeric(config$WIDTH) * dpmm)
   hgt_dots <- round(as.numeric(config$LENGTH) * dpmm)
   
-  # --- DYNAMIC OFFSET CALCULATION ---
-  # Find the maximum Y-coordinate used in the format lines (in mm)
-  # Max Y = Top Position + Height of the tallest field
+  # Dynamic offset calculation (keep your existing logic)
   max_content_y_mm <- max(format_lines$TOP_POSITION + format_lines$FONT_HEIGHT)
-  
-  # Determine if we need to reduce the 5mm offset to prevent overflow
-  # Content height + Offset must be <= Label Length (31.75mm)
   current_offset <- as.numeric(config$TOP_OFFSET)
   if ((max_content_y_mm + current_offset) > as.numeric(config$LENGTH)) {
-    # Reduce offset to the remaining available space, minimum of 0
     current_offset <- max(0, as.numeric(config$LENGTH) - max_content_y_mm)
     message("Label ", index, ": Content overflow detected. Reducing TOP_OFFSET to ", round(current_offset, 2), "mm")
   }
   
   zpl <- c(
-    "^XA", "^MCY", "^MTT", "^MNY",
+    "^XA",
+    "^MNN",        # Gap-sensing labels
+    "^JUS",        # Auto-calibrate before printing
+    "~JA",         # ← ADD THIS: Clear all jobs in buffer
     glue::glue("^MD{config$DARKNESS}"),
     glue::glue("^PR{config$PRINT_RATE}"),
     glue::glue("^PW{len_dots}"),
     glue::glue("^LL{hgt_dots}")
   )
   
+  # ... rest of your existing code for fields/barcodes ...
+  
   for (i in seq_len(nrow(format_lines))) {
     line <- format_lines[i, ]
-    
-    # Apply the dynamically adjusted offset
     x <- round((line$LEFT_POSITION + config$LEFT_OFFSET) * dpmm)
     y <- round((line$TOP_POSITION + current_offset) * dpmm)
-    
     content <- as.character(data_row[[line$FIELD_NAME]])
     if (length(content) == 0 || is.na(content)) content <- ""
     
@@ -166,11 +162,9 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total)
       f_h <- round(line$FONT_HEIGHT * dpmm)
       f_w <- round(line$FONT_WIDTH * dpmm)
       
-      # Guard: 700/500 BLOCK_WIDTH are dots, don't multiply by dpmm
       if (!is.na(line$BLOCK_WIDTH) && line$BLOCK_WIDTH > 0) {
         b_w <- if(line$BLOCK_WIDTH > 100) round(line$BLOCK_WIDTH) else round(line$BLOCK_WIDTH * dpmm)
-        b_w <- min(b_w, len_dots - x - 10) # 10 dot margin on right
-        
+        b_w <- min(b_w, len_dots - x - 10)
         justify <- if(!is.na(line$JUSTIFY)) substr(line$JUSTIFY, 1, 1) else "L"
         zpl <- c(zpl, glue::glue("^FO{x},{y}^A0{line$ORIENTATION},{f_h},{f_w}^FB{b_w},1,0,{justify},0^FD{content}^FS"))
       } else {
@@ -182,6 +176,7 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total)
   zpl <- c(zpl, "^XZ")
   return(paste0(paste(zpl, collapse = "\n"), "\n"))
 }
+
 ################################################################################
 
 
@@ -252,7 +247,8 @@ print_lims_labels <- function(dataset, printer_config, format_lines,
       rstudioapi::viewer(tmp)
     }
     
-  } else {
+  }
+  if (mode == "real") {
     if (abort_real_show_payload) {
       cat(paste(zpl_list, collapse = "\n---\n"))
       return(invisible(zpl_list))
@@ -260,12 +256,32 @@ print_lims_labels <- function(dataset, printer_config, format_lines,
     
     # Real Printer: One-by-One Loop
     printer_path <- paste0("\\\\inbo-print-pr\\", printer_config$PRINTER_PORT)
+    
+    # ADD THIS: Reset printer memory
+    reset_zpl <- "~JA"  # Delete all jobs in buffer
+    tmp_reset <- tempfile(fileext = ".zpl")
+    writeLines(reset_zpl, tmp_reset)
+    shell(paste0('copy /B "', tmp_reset, '" "', printer_path, '"'), intern = TRUE)
+    Sys.sleep(1)
+    
+    calibration_zpl <- "^XA^JUS^XZ\n"
+    tmp_cal <- tempfile(fileext = ".zpl")
+    writeLines(calibration_zpl, tmp_cal)
+    shell(paste0('copy /B "', tmp_cal, '" "', printer_path, '"'), intern = TRUE)
+    Sys.sleep(1)  # Give printer time to calibrate
     for (i in seq_along(zpl_list)) {
+      cat(sprintf("\n=== LABEL %d ZPL ===\n", i))
+      cat(zpl_list[[i]])
       tmp_zpl <- tempfile(fileext = ".zpl")
       writeLines(zpl_list[[i]], tmp_zpl)
       shell(paste0('copy /B "', tmp_zpl, '" "', printer_path, '"'), intern = TRUE)
-      Sys.sleep(0.4) 
+      Sys.sleep(2.5) 
+      
+      if (i %% 10 == 0) {
+        message(sprintf("Printed %d of %d labels", i, length(zpl_list)))
+      }
     }
   }
+  message(sprintf("Completed: %d labels sent to printer", length(zpl_list)))
   invisible(zpl_list)
 }
