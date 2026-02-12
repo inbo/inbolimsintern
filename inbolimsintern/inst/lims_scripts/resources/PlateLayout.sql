@@ -11,9 +11,7 @@ WITH PlateBase AS (
         s2.TEXT_ID AS parent_text_id,
         pp.ROW_NUMBER,
         pp.COLUMN_NUMBER AS LANE,
-        -- Identify the "Family Root" (The Parent ID) for location lookups
         CASE WHEN s.PARENT_SAMPLE > 0 THEN s.PARENT_SAMPLE ELSE s.SAMPLE_NUMBER END AS FamilyID,
-        -- Row 1 Display ID
         CAST(s.TEXT_ID AS VARCHAR(50)) + 
             CASE WHEN s.SAMPLE_TYPE IN ('S', 'SUBSAMPLE') THEN 'S' ELSE '' END AS DisplayID
     FROM sample s
@@ -29,13 +27,13 @@ FamilyLocations AS (
     SELECT 
         pb.SAMPLE_NUMBER,
         STUFF((
-            SELECT ' ' + CAST(ISNULL(s_rel.C_PLATE_SHORT, '??') AS VARCHAR(10)) +  -- pp
-                   CHAR(pp_rel.ROW_NUMBER + 64) +                                 -- c
-                   RIGHT('0' + CAST(pp_rel.COLUMN_NUMBER AS VARCHAR(2)), 2)       -- ll
+            SELECT ' ' + CAST(ISNULL(s_rel.C_PLATE_SHORT, '??') AS VARCHAR(10)) + 
+                   CHAR(pp_rel.ROW_NUMBER + 64) +                                
+                   RIGHT('0' + CAST(pp_rel.COLUMN_NUMBER AS VARCHAR(2)), 2)       
             FROM sample s_rel
             JOIN plate_position pp_rel ON s_rel.SAMPLE_NUMBER = pp_rel.SAMPLE_NUMBER
             WHERE (s_rel.SAMPLE_NUMBER = pb.FamilyID OR s_rel.PARENT_SAMPLE = pb.FamilyID)
-              AND s_rel.SAMPLE_NUMBER <> pb.SAMPLE_NUMBER -- Exclude "self"
+              AND s_rel.SAMPLE_NUMBER <> pb.SAMPLE_NUMBER
               AND s_rel.PROJECT = <<projectName>>
             FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS AllLocs
     FROM PlateBase pb

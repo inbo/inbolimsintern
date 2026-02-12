@@ -4,7 +4,7 @@ library(inbolimsintern)
 #log_message("Setting up R session...")
 args <- commandArgs(trailingOnly = TRUE)
 setup <- try(r_session_setup(args), silent = TRUE)
-#library(inbolimsintern);args <- c("LWL8PRD", "11218", "PIETERVS");setup <- try(r_session_setup(args))
+#library(inbolimsintern);args <- c("LWL8PRD", "11345", "PIETERVS");setup <- try(r_session_setup(args))
 
 #log_message(paste("Arguments:", paste(args, collapse = ", ")))
 if (inherits(setup, "try-error")) {
@@ -25,7 +25,7 @@ qry = paste("select [PROJECT], [TEXT_ID], [SAMPLE_ID] , [USER],",
             "[CALL_ID], [PRINTER], [LABELFORMAAT], [SMP_ORDER], [REP]", 
             " from C_TMP_LABEL_PROCESSI ",
             " where CALL_ID = ", call_id, 
-            " order by SMP_ORDER, REP, TEXT_ID")
+            " order by ID, SMP_ORDER, REP, TEXT_ID")
 data <- DBI::dbGetQuery(conn, qry)
 if (nrow(data) == 0){
   write_db_log("Geen labels gevonden", "E")
@@ -45,6 +45,9 @@ format_lines <- get_label_format(conn, layout)
 
 #print_lims_labels(data, printer_config, format_lines, mode = "api", format = "pdf")
 debugmode <- FALSE
+batch_mode <- FALSE
+batch_size <- 8
+
 e <- try({
   print_lims_labels(
     data,
@@ -52,7 +55,9 @@ e <- try({
     format_lines,
     mode = "real",
     format = "pdf",
-    abort_real_show_payload = debugmode)
+    abort_real_show_payload = debugmode,
+    batch_mode = batch_mode,
+    batch_size = batch_size)
 })
 if (inherits(e, "try-error")) {
   write_db_log(paste("ERROR printing to printer:", e), "E")

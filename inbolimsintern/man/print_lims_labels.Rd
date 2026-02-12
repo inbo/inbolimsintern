@@ -11,7 +11,9 @@ print_lims_labels(
   mode = c("api", "real"),
   abort_real_show_payload = FALSE,
   format = c("png", "pdf"),
-  output_path = "C:/Labels/label_output.pdf"
+  output_path = "C:/Labels/label_output.pdf",
+  batch_mode = FALSE,
+  batch_size = 8
 )
 }
 \arguments{
@@ -28,6 +30,10 @@ print_lims_labels(
 \item{format}{Character. "png" (single) or "pdf" (batch) for API previews.}
 
 \item{output_path}{Character. Path to save the output file.}
+
+\item{batch_mode}{for in the future if working with batch jobs instead of label per label}
+
+\item{batch_sie}{how many labels per batch}
 }
 \description{
 Master function to handle API previews or direct network printing.

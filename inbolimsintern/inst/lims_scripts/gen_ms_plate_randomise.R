@@ -40,7 +40,8 @@ if (inherits(e, 'try-error')) {
 ### >>> Genereer de plaatdata
 
 e <- try({
-  dfPlates <- inbolimsintern::gen_ms_create_plates(DNA)
+  dfPlates <- inbolimsintern::gen_ms_create_plates(DNA) |> 
+    dplyr::mutate(SAMPLE_NUMBER = round(SAMPLE_NUMBER))
 })
 if (inherits(e, 'try-error')) {
   write_db_log(paste("Probleem bij genereren plaatdata: ", e ), "E")

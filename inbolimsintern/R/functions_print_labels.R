@@ -120,30 +120,22 @@ adjust_label_positions <- function(format_lines, target_height_mm, original_heig
 #' @return A character string of ZPL code for a single label.
 #' @export
 dynamic_label_template <- function(data_row, format_lines, config, index, total) {
-  
   dpmm <- as.numeric(config$DPI) / 25.4 
   len_dots <- round(as.numeric(config$WIDTH) * dpmm)
   hgt_dots <- round(as.numeric(config$LENGTH) * dpmm)
   
-  # Dynamic offset calculation (keep your existing logic)
+  # Calculate dynamic offset
   max_content_y_mm <- max(format_lines$TOP_POSITION + format_lines$FONT_HEIGHT)
   current_offset <- as.numeric(config$TOP_OFFSET)
-  if ((max_content_y_mm + current_offset) > as.numeric(config$LENGTH)) {
-    current_offset <- max(0, as.numeric(config$LENGTH) - max_content_y_mm)
-    message("Label ", index, ": Content overflow detected. Reducing TOP_OFFSET to ", round(current_offset, 2), "mm")
-  }
   
   zpl <- c(
     "^XA",
-    "^MNN",        # Gap-sensing labels
-    "^JUS",        # Auto-calibrate before printing
-    "~JA",         # ← ADD THIS: Clear all jobs in buffer
+    # REMOVED ~JA and ^JUS from here
     glue::glue("^MD{config$DARKNESS}"),
     glue::glue("^PR{config$PRINT_RATE}"),
     glue::glue("^PW{len_dots}"),
     glue::glue("^LL{hgt_dots}")
   )
-  
   # ... rest of your existing code for fields/barcodes ...
   
   for (i in seq_len(nrow(format_lines))) {
@@ -179,6 +171,133 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total)
 
 ################################################################################
 
+#' Master function to handle API previews or direct network printing.
+#'
+#' @param dataset Dataframe. The sample data to print.
+#' @param printer_config List. Hardware settings (DPI, DARKNESS, PRINTER_PORT, etc.).
+#' @param format_lines Dataframe. Label design definitions from T_LABEL_FORMAT_LINE.
+#' @param mode Character. "api" for Labelary preview, "real" for physical network printing.
+#' @param abort_real_show_payload Logical. If TRUE, stops before printing and prints ZPL to console.
+#' @param format Character. "png" (single image) or "pdf" (multi-page batch) for API previews.
+#' @param output_path Character. Local path to save the generated preview PDF.
+#' @param batch_mode Logical. If TRUE, sends labels in chunks (stable). If FALSE, sends one-by-one (slower).
+#' @param batch_size Integer. Number of labels per transmission file when batch_mode is TRUE.
+#'
+#' @return Invisibly returns the list of generated ZPL strings.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Setup data
+#' samples <- data.frame(
+#'   SAMPLE_ID = c("HEL001", "HEL001", "HEL002"), 
+#'   TEXT_ID = c("24-001", "24-001", "24-002"), 
+#'   PROJECT = "V-24G059"
+#' )
+#' 
+#' # 1. Preview Batch as PDF
+#' print_lims_labels(samples, p_cfg, f_lns, mode = "api", format = "pdf")
+#' 
+#' # 2. Real Print in batches of 10 for stability
+#' print_lims_labels(samples, p_cfg, f_lns, mode = "real", batch_mode = TRUE, batch_size = 10)
+#' }
+print_lims_labels_try <- function(dataset, printer_config, format_lines, 
+                              mode = c("api", "real"), 
+                              abort_real_show_payload = FALSE,
+                              format = c("png", "pdf"),
+                              output_path = "C:/Labels/label_output.pdf",
+                              batch_mode = FALSE,
+                              batch_size = 8) {
+  
+  mode <- match.arg(mode)
+  format <- match.arg(format)
+  
+  # 1. Generate ZPL list (Ensure template is clean of ~JA/^JUS)
+  zpl_list <- lapply(seq_len(nrow(dataset)), function(i) {
+    dynamic_label_template(dataset[i, ], format_lines, printer_config, i, nrow(dataset))
+  })
+  
+  # --- PREVIEW MODE (Labelary API) ---
+  if (mode == "api") {
+    full_payload <- paste(zpl_list, collapse = "\n")
+    url <- sprintf("http://api.labelary.com/v1/printers/%sdpmm/labels/2.75x1.25/", round(as.numeric(printer_config$DPI)/25.4))
+    
+    res <- httr::POST(url, body = full_payload, encode = "raw",
+                      httr::add_headers("Accept" = if(format == "pdf") "application/pdf" else "image/png"))
+    
+    if (httr::status_code(res) != 200) stop("API Error: ", httr::content(res, "text"))
+    
+    content_raw <- httr::content(res, "raw")
+    if (format == "pdf") {
+      writeBin(content_raw, output_path)
+      if (.Platform$OS.type == "windows") shell.exec(normalizePath(output_path))
+    } else {
+      tmp <- tempfile(fileext = ".png"); writeBin(content_raw, tmp); rstudioapi::viewer(tmp)
+    }
+  }
+  
+  # --- PHYSICAL PRINT MODE ---
+  if (mode == "real") {
+    if (abort_real_show_payload) {
+      cat(paste(zpl_list, collapse = "\n---\n"))
+      return(invisible(zpl_list))
+    }
+    
+    printer_path <- paste0("\\\\inbo-print-pr\\", printer_config$PRINTER_PORT)
+    
+    # 2. Setup Printer ONCE (Clear buffer and calibrate)
+    # We send ~JA (Cancel) and ^JUS (Save) only here, not per label.
+    setup_zpl <- "^XA~JA^XZ\n^XA^MNN^JUS^XZ"
+    tmp_setup <- tempfile(fileext = ".zpl")
+    writeLines(setup_zpl, tmp_setup)
+    shell(paste0('copy /B "', tmp_setup, '" "', printer_path, '"'), intern = TRUE)
+    Sys.sleep(1.5) 
+    
+    if (batch_mode) {
+      # --- BATCHED EXECUTION ---
+      # Split zpl_list into chunks of size batch_size
+      chunks <- split(zpl_list, ceiling(seq_along(zpl_list) / batch_size))
+      
+      for (j in seq_along(chunks)) {
+        message(sprintf("Sending batch %d (%d labels)...", j, length(chunks[[j]])))
+        batch_payload <- paste(chunks[[j]], collapse = "\n")
+        tmp_batch <- tempfile(fileext = ".zpl")
+        writeLines(batch_payload, tmp_batch)
+        shell(paste0('copy /B "', tmp_batch, '" "', printer_path, '"'), intern = TRUE)
+        
+        # Give printer time to breathe between batches
+        Sys.sleep(3) 
+      }
+      
+    } else {
+      # --- ONE-BY-ONE EXECUTION ---
+      for (i in seq_along(zpl_list)) {
+        tmp_zpl <- tempfile(fileext = ".zpl")
+        writeLines(zpl_list[[i]], tmp_zpl)
+        shell(paste0('copy /B "', tmp_zpl, '" "', printer_path, '"'), intern = TRUE)
+        
+        # Standard spacing
+        Sys.sleep(1.2)
+        
+        # Periodic cool-down
+        if (i %% 8 == 0) {
+          message(sprintf("Printed %d labels. Cooling down...", i))
+          Sys.sleep(4)
+        }
+      }
+    }
+  }
+  
+  message(sprintf("Completed: %d labels processed.", length(zpl_list)))
+  invisible(zpl_list)
+}
+
+
+
+
+
+
+################################################################################
 
 #' Master function to handle API previews or direct network printing.
 #'
@@ -189,6 +308,8 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total)
 #' @param format Character. "png" (single) or "pdf" (batch) for API previews.
 #' @param output_path Character. Path to save the output file.
 #' @param abort_real_show_payload stop just before printing on the printer and show the payload that would be sent
+#' @param batch_mode for in the future if working with batch jobs instead of label per label
+#' @param batch_sie how many labels per batch
 #'
 #' @export
 #' @examples
@@ -199,89 +320,92 @@ dynamic_label_template <- function(data_row, format_lines, config, index, total)
 #' f_lns <- adjust_label_positions(f_lns, target_height_mm = p_cfg$LENGTH)
 
 #' samples <- data.frame(SAMPLE_ID = "extern id van dit", TEXT_ID="D26-123456-01", PROJECT="V-25W100-05")
-#' 
+#'
 #' # Preview as PDF
 #' print_lims_labels(samples, p_cfg, f_lns, mode = "api", format = "pdf")
 #' }
 #' @export
-print_lims_labels <- function(dataset, printer_config, format_lines, 
-                              mode = c("api", "real"), 
-                              abort_real_show_payload = FALSE,
-                              format = c("png", "pdf"),
-                              output_path = "C:/Labels/label_output.pdf") {
-  
-  mode <- match.arg(mode)
-  format <- match.arg(format)
-  
-  # Generate ZPL list
-  zpl_list <- lapply(seq_len(nrow(dataset)), function(i) {
-    dynamic_label_template(dataset[i, ], format_lines, printer_config, i, nrow(dataset))
-  })
-  
-  if (mode == "api") {
-    # Combine all labels for the API
-    full_payload <- paste(zpl_list, collapse = "\n")
-    
-    # 300 DPI corresponds to 12 dpmm in Labelary
-    # Dimensions: 69.85mm x 31.75mm is approx 2.75 x 1.25 inches
-    url <- "http://api.labelary.com/v1/printers/12dpmm/labels/2.75x1.25/"
-    
-    res <- httr::POST(
-      url, 
-      body = full_payload, 
-      encode = "raw",
-      httr::add_headers("Accept" = if(format == "pdf") "application/pdf" else "image/png")
-    )
-    
-    if (httr::status_code(res) != 200) stop("API Error: ", httr::content(res, "text"))
-    
-    content_raw <- httr::content(res, "raw")
-    if (format == "pdf") {
-      writeBin(content_raw, output_path)
-      message("Success! Multi-page PDF created at: ", output_path)
-      if (.Platform$OS.type == "windows") shell.exec(normalizePath(output_path))
-    } else {
-      # For PNG, RStudio viewer will show the first label of the batch
-      tmp <- tempfile(fileext = ".png")
-      writeBin(content_raw, tmp)
-      rstudioapi::viewer(tmp)
-    }
-    
-  }
-  if (mode == "real") {
-    if (abort_real_show_payload) {
-      cat(paste(zpl_list, collapse = "\n---\n"))
-      return(invisible(zpl_list))
-    }
-    
-    # Real Printer: One-by-One Loop
-    printer_path <- paste0("\\\\inbo-print-pr\\", printer_config$PRINTER_PORT)
-    
-    # ADD THIS: Reset printer memory
-    reset_zpl <- "~JA"  # Delete all jobs in buffer
-    tmp_reset <- tempfile(fileext = ".zpl")
-    writeLines(reset_zpl, tmp_reset)
-    shell(paste0('copy /B "', tmp_reset, '" "', printer_path, '"'), intern = TRUE)
-    Sys.sleep(1)
-    
-    calibration_zpl <- "^XA^JUS^XZ\n"
-    tmp_cal <- tempfile(fileext = ".zpl")
-    writeLines(calibration_zpl, tmp_cal)
-    shell(paste0('copy /B "', tmp_cal, '" "', printer_path, '"'), intern = TRUE)
-    Sys.sleep(1)  # Give printer time to calibrate
-    for (i in seq_along(zpl_list)) {
-      cat(sprintf("\n=== LABEL %d ZPL ===\n", i))
-      cat(zpl_list[[i]])
-      tmp_zpl <- tempfile(fileext = ".zpl")
-      writeLines(zpl_list[[i]], tmp_zpl)
-      shell(paste0('copy /B "', tmp_zpl, '" "', printer_path, '"'), intern = TRUE)
-      Sys.sleep(2.5) 
-      
-      if (i %% 10 == 0) {
-        message(sprintf("Printed %d of %d labels", i, length(zpl_list)))
-      }
-    }
-  }
-  message(sprintf("Completed: %d labels sent to printer", length(zpl_list)))
-  invisible(zpl_list)
-}
+print_lims_labels <- function(dataset, printer_config, format_lines,
+                               mode = c("api", "real"),
+                               abort_real_show_payload = FALSE,
+                               format = c("png", "pdf"),
+                               output_path = "C:/Labels/label_output.pdf",
+                              batch_mode = FALSE,
+                              batch_size = 8) {
+
+   mode <- match.arg(mode)
+   format <- match.arg(format)
+
+    #Generate ZPL list
+   zpl_list <- lapply(seq_len(nrow(dataset)), function(i) {
+     dynamic_label_template(dataset[i, ], format_lines, printer_config, i, nrow(dataset))
+   })
+
+   if (mode == "api") {
+     # Combine all labels for the API
+     full_payload <- paste(zpl_list, collapse = "\n")
+
+      #300 DPI corresponds to 12 dpmm in Labelary
+      #Dimensions: 69.85mm x 31.75mm is approx 2.75 x 1.25 inches
+     url <- "http://api.labelary.com/v1/printers/12dpmm/labels/2.75x1.25/"
+
+     res <- httr::POST(
+       url,
+       body = full_payload,
+       encode = "raw",
+       httr::add_headers("Accept" = if(format == "pdf") "application/pdf" else "image/png")
+     )
+
+     if (httr::status_code(res) != 200) stop("API Error: ", httr::content(res, "text"))
+
+     content_raw <- httr::content(res, "raw")
+     if (format == "pdf") {
+       writeBin(content_raw, output_path)
+       message("Success! Multi-page PDF created at: ", output_path)
+       if (.Platform$OS.type == "windows") shell.exec(normalizePath(output_path))
+     } else {
+       # For PNG, RStudio viewer will show the first label of the batch
+       tmp <- tempfile(fileext = ".png")
+       writeBin(content_raw, tmp)
+       rstudioapi::viewer(tmp)
+     }
+
+   }
+   if (mode == "real") {
+     if (abort_real_show_payload) {
+       cat(paste(zpl_list, collapse = "\n---\n"))
+       return(invisible(zpl_list))
+     }
+
+      # Real Printer: One-by-One Loop
+     printer_path <- paste0("\\\\inbo-print-pr\\", printer_config$PRINTER_PORT)
+
+      # ADD THIS: Reset printer memory
+     reset_zpl <- "~JA"   #Delete all jobs in buffer
+     tmp_reset <- tempfile(fileext = ".zpl")
+     writeLines(reset_zpl, tmp_reset)
+     shell(paste0('copy /B "', tmp_reset, '" "', printer_path, '"'), intern = TRUE)
+     Sys.sleep(1)
+
+     calibration_zpl <- "^XA^JUS^XZ\n"
+     tmp_cal <- tempfile(fileext = ".zpl")
+     writeLines(calibration_zpl, tmp_cal)
+     shell(paste0('copy /B "', tmp_cal, '" "', printer_path, '"'), intern = TRUE)
+     Sys.sleep(1)  # Give printer time to calibrate
+     for (i in seq_along(zpl_list)) {
+       cat(sprintf("\n=== LABEL %d ZPL ===\n", i))
+       cat(zpl_list[[i]])
+       tmp_zpl <- tempfile(fileext = ".zpl")
+       writeLines(zpl_list[[i]], tmp_zpl)
+       shell(paste0('copy /B "', tmp_zpl, '" "', printer_path, '"'), intern = TRUE)
+       Sys.sleep(1.2)
+
+       if (i %% 8 == 0) {
+         message(sprintf("Printed %d of %d labels", i, length(zpl_list)))
+         Sys.sleep(5) #Pause for 2 seconds after each 10 labels to let the printer catch up
+       }
+     }
+   }
+   message(sprintf("Completed: %d labels sent to printer", length(zpl_list)))
+   invisible(zpl_list)
+ }

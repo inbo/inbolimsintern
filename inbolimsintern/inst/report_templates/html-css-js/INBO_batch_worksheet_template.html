@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @media screen {
+            body { background: #e0e0e0; padding: 20px; font-family: sans-serif; }
+            .page { background: white; margin: 20px auto; padding: 1cm; width: 277mm; min-height: 190mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); position: relative;}
+        }
+        @media print {
+            @page { size: A4 landscape; margin: 0; }
+            body { background: none; padding: 0; }
+            .page { width: 277mm; height: 190mm; page-break-after: always; padding: 1cm; box-shadow: none; border: none; }
+            .no-print { display: none; }
+        }
+        
+        .header-info { margin-bottom: 10px; font-size: 10pt; font-weight: bold; display: flex; justify-content: space-between; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #000; padding: 4px; font-size: 8pt; text-align: center; overflow: hidden; word-wrap: break-word; }
+        th { background-color: #f2f2f2; height: 45px; vertical-align: middle; }
+        
+        /* Fixed Column Widths */
+        .col-id { width: 110px; }
+        .col-textid { width: 100px; font-weight: bold; text-align: left; background-color: #eee !important; }
+        .col-pos { width: 40px; }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:right; padding: 10px;">
+        <button onclick="window.print()" style="padding: 8px 16px; cursor: pointer;">Print to PDF / A4</button>
+    </div>
+    <div id="report-container"></div>
+
+<script>
+    const rawData = <<<DATA>>>;
+    const COLS_PER_PAGE = 7; 
+    const ROWS_PER_PAGE = 25;
+
+    function buildReport() {
+        if (!rawData || rawData.length === 0) return;
+
+        const container = document.getElementById('report-container');
+        
+        // 1. Updated Fixed Fields (BATCH is now a visible column)
+        const fixedFields = ['BATCH', 'ID', 'Pos', 'TEXT_ID'];
+        
+        const allKeys = new Set();
+        rawData.forEach(r => Object.keys(r).forEach(k => {
+            if (!fixedFields.includes(k)) allKeys.add(k);
+        }));
+        const resultFields = Array.from(allKeys);
+
+        for (let r = 0; r < rawData.length; r += ROWS_PER_PAGE) {
+            const rowChunk = rawData.slice(r, r + ROWS_PER_PAGE);
+
+            for (let c = 0; c < resultFields.length; c += COLS_PER_PAGE) {
+                const colChunk = resultFields.slice(c, c + COLS_PER_PAGE);
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page';
+                
+                // Page Header Info
+                const currentPage = Math.floor(c / COLS_PER_PAGE) + 1;
+                const totalPages = Math.ceil(resultFields.length / COLS_PER_PAGE);
+                pageDiv.innerHTML = `
+                    <div class="header-info">
+                        <span>Worksheet: ${rawData[0].BATCH}</span>
+                        <span>Section: ${currentPage} of ${totalPages}</span>
+                    </div>`;
+
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const hRow = document.createElement('tr');
+
+                // Render Fixed Headers
+                fixedFields.forEach(field => {
+                    const th = document.createElement('th');
+                    th.textContent = field;
+                    // Apply width classes
+                    if(field === 'BATCH') th.style.width = '100px';
+                    if(field === 'ID') th.style.width = '110px';
+                    if(field === 'Pos') th.style.width = '40px';
+                    if(field === 'TEXT_ID') th.classList.add('col-textid');
+                    hRow.appendChild(th);
+                });
+
+                // Render Dynamic Result Headers
+                colChunk.forEach(field => {
+                    const th = document.createElement('th');
+                    th.textContent = field;
+                    hRow.appendChild(th);
+                });
+                thead.appendChild(hRow);
+                table.appendChild(thead);
+
+                // Render Rows
+                const tbody = document.createElement('tbody');
+                rowChunk.forEach(rowData => {
+                    const tr = document.createElement('tr');
+                    
+                    fixedFields.forEach(field => {
+                        const td = document.createElement('td');
+                        td.textContent = rowData[field] || '-';
+                        if(field === 'TEXT_ID') td.classList.add('col-textid');
+                        tr.appendChild(td);
+                    });
+
+                    colChunk.forEach(field => {
+                        const td = document.createElement('td');
+                        td.textContent = (rowData[field] !== undefined) ? rowData[field] : '-';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(tbody);
+                pageDiv.appendChild(table);
+                container.appendChild(pageDiv);
+            }
+        }
+    }
+    buildReport();
+</script>
+</body>
+</html>
