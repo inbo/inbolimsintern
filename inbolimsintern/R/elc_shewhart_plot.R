@@ -37,14 +37,15 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                               title = NULL,
                               fig_height = 600) {
   colnames(subdata) <- toupper(colnames(subdata))
-  if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE #tijdelijk-moet beter geimplementeerd worden'
-
+  if (is.null(subdata$ENTRY)) subdata$ENTRY <- subdata$WAARDE
+  
   if(is.null(base_color)) {
-    base_color <-  (subdata %>% filter(is.na(.data$EVAL) | .data$EVAL == FALSE) %>% pull(.data$COLOR))[1]
-    if (is.na(base_color)) base_color <- "lightblue3" #wanneer alle data EVAL true hebben
+    base_color <- (subdata %>% filter(is.na(.data$EVAL) | .data$EVAL == FALSE) %>% 
+                     pull(.data$COLOR))[1]
+    if (is.na(base_color)) base_color <- "lightblue3"
   }
   blue_palette <- colorRampPalette(c("darkblue", base_color))
-
+  
   if (is.null(borders)) {
     borders <- data.frame(lim = -3:3,
                           val = c(max(subdata$LCL3S), max(subdata$LCL2S),
@@ -52,100 +53,94 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
                                   max(subdata$UCL1S), max(subdata$UCL2S),
                                   max(subdata$UCL3S)),
                           color = c("red", "orange", "green4", "blue4",
-                                         "green4", "orange", "red"))
+                                    "green4", "orange", "red"))
   }
   if (is.null(title)) {
     title <- subdata$COMBI[1]
   }
-
+  
   # Add hover text to the data (only used in interactive plots)
   subdata$hover_text <- paste("Batch:", subdata$BATCH,
                               "<br>Value:", round(subdata$ENTRY, 2),
                               "<br>Ingelezen:", as.Date(subdata$ENTERED_ON))
-
+  
+  # Convert integer64 to numeric/integer to avoid issues
   subdata <- subdata %>%
     arrange(BATCHNR, ORDER) %>%
+    mutate(BATCHNR = as.numeric(BATCHNR)) %>%  # Handle integer64
     group_by(BATCHNR) %>%
     mutate(ORDER_WITHIN_BATCH = row_number()) %>%
     ungroup()
-
+  
   max_order <- max(subdata$ORDER_WITHIN_BATCH)
   subdata <- subdata %>%
     mutate(COLOR = ifelse(ORDER_WITHIN_BATCH > 1,
                           blue_palette(max_order)[ORDER_WITHIN_BATCH],
                           COLOR))
-
-
+  
   evaldata <- subdata %>%
     filter(!is.na(.data$EVAL) & (.data$EVAL != FALSE)) %>%
     arrange(.data$BATCHNR)
+  
   zoom_y <- FALSE
   if (max_s_plot > 0 & !(is.na(max_s_plot))) {
     s1 <- (borders[borders$lim == 1, "val"] - borders[borders$lim == -1, "val"])/2
-    smin <- borders[borders$lim == 0, "val"] - max_s_plot *s1
-    smax <- borders[borders$lim == 0, "val"] + max_s_plot *s1
-
+    smin <- borders[borders$lim == 0, "val"] - max_s_plot * s1
+    smax <- borders[borders$lim == 0, "val"] + max_s_plot * s1
+    
     if (any(subdata$ENTRY > smax, na.rm = TRUE) |
         any(subdata$ENTRY < smin, na.rm = TRUE)) {
-      zoom_y <-  TRUE
+      zoom_y <- TRUE
     }
   }
-
+  
   # replace micro symbols
-  pattern <- "(\\u00B5|<b5>)(m|S)" #group pattern (mu and S or M)
-  replacement <- "u\\2" # backreference '\\2' re-insert character second group
+  pattern <- "(\\u00B5|<b5>)(m|S)"
+  replacement <- "u\\2"
   units <- gsub(pattern, replacement, max(subdata$UNITS))
-
+  
   # Calculate text size based on number of points
   n_points <- nrow(evaldata)
   text_size <- if(n_points <= 50) {
-    8  # default size
+    8
   } else {
-    # Linear scaling: size decreases as points increase
-    max(8 * (50/n_points), 4)  # minimum size of 4
+    max(8 * (50/n_points), 4)
   }
+  
   suppressWarnings({
-    p <-
-      ggplot(
-        data = subdata,
-        mapping = aes(x = .data$BATCHNR,
-                      y = .data$ENTRY)) +
-      geom_point(
-        mapping = aes(text = .data$hover_text),
-        colour  = subdata$COLOR) +
-      geom_path(
-        data = evaldata,
-        mapping = aes(x = .data$BATCHNR,
-                      y = .data$ENTRY),
-        colour  = base_color) +
-      geom_point(
-        data = evaldata,
-        mapping = aes(x = .data$BATCHNR,
-                      y = .data$ENTRY,
-                      text = .data$hover_text),
-        colour = evaldata$COLOR) +
-      geom_hline(
-        data = borders,
-        mapping = aes(yintercept = .data$val),
-        colour = borders$color) +
-      scale_x_continuous(
-        breaks = evaldata$BATCHNR,
-        labels = evaldata$BATCH) +
-      theme(
-        axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size = text_size)) +  # Dynamic text size
+    p <- ggplot(data = subdata,
+                mapping = aes(x = .data$BATCHNR,
+                              y = .data$ENTRY)) +
+      geom_point(mapping = aes(text = .data$hover_text),
+                 colour = subdata$COLOR) +
+      geom_path(data = evaldata,
+                mapping = aes(x = .data$BATCHNR,
+                              y = .data$ENTRY,
+                              group = 1),  # Add explicit group = 1
+                colour = base_color) +
+      geom_point(data = evaldata,
+                 mapping = aes(x = .data$BATCHNR,
+                               y = .data$ENTRY,
+                               text = .data$hover_text),
+                 colour = evaldata$COLOR) +
+      geom_hline(data = borders,
+                 mapping = aes(yintercept = .data$val),
+                 colour = borders$color) +
+      scale_x_continuous(breaks = evaldata$BATCHNR,
+                         labels = evaldata$BATCH) +
+      theme(axis.text.x = element_text(angle = 90,
+                                       hjust = 1,
+                                       vjust = 0.5,
+                                       size = text_size)) +
       ylab(paste0("Waarde [", units, "]")) +
-      xlab(title) #+labs(subtitle = title)
-
+      xlab(title)
+    
     if (zoom_y){
       p <- p + coord_cartesian(ylim = c(smin, smax))
     }
-    checkdata <<- ggplot_build(p) #om debugging mogelijk te maken
+    checkdata <<- ggplot_build(p)
   })
-
-  #return static or interactive plot
+  
   if (!interactive) {
     return(p)
   } else {
@@ -155,6 +150,3 @@ ELC_shewhart_plot <- function(subdata, borders = NULL,
     return(p_interactive)
   }
 }
-
-
-
