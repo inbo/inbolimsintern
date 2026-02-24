@@ -10,7 +10,7 @@ library(tidyverse)
 library(inbolimsintern)
 library(readxl)
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
-#library(tidyverse);library(readxl);args <- c("LWL8UAT", "10443", "TEST_INT"); setup <- try(r_session_setup(args))
+#library(tidyverse);library(readxl);args <- c("LWLPRD", "11390", "TEST_INT"); setup <- try(r_session_setup(args))
 invisible(list2env(setup, envir = .GlobalEnv))
 
 if (inherits(setup, "try-error")) {
@@ -72,7 +72,11 @@ if (nrow(files) > 0) {
     }
     e <- try(data <- get_data_from_importfile(file.path(grabloc_batchimport, current_file), batch_info, interpret_types = TRUE))
     if (inherits(e, "try-error")) write_db_log(e, "E")
-    e <- try(move_batch_importfile(data, batch_info, source_file = current_file, source_path = grabloc_batchimport, scheduler_base_dir = scheduler_base_dir))
+    e <- try(move_batch_importfile(data = data,
+                                   batch_info = batch_info,
+                                   source_file = current_file,
+                                   source_path = grabloc_batchimport,
+                                   scheduler_base_dir = scheduler_base_dir))
     if (inherits(e, "try-error")) write_db_log(e, "E")
   }
 }
