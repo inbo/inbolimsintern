@@ -68,6 +68,17 @@ elc_htmldata <-
                                   ctr_x - 3 * ctr_sd,
                                   ctr_x + 3 * ctr_sd,
                                   run = 1)
+    
+    #specifieke wijziging voor Blanco en PBL: rood kleuren vanaf +- 2s ipv 3s
+    if ("SAMPLE_TYPE" %in% names(checkdata)) {
+      if (checkdata$SAMPLE_TYPE %in% c("BLANCO", "PRBLANCO")) {
+        checkdata$OUT3S <- qcc_rule01(values,
+                                      ctr_x - 2 * ctr_sd,
+                                      ctr_x + 2 * ctr_sd,
+                                      run = 1)        
+      }
+    }
+    
     #SOP_033 R2: 2 op 3 buiten 2s aan dezelfde kant (warn)
     checkdata$WARN  <- qcc_rule05(values,
                                   ctr_x - 2 * ctr_sd,

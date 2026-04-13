@@ -4,7 +4,7 @@ library(inbolimsintern)
 #log_message("Setting up R session...")
 args <- commandArgs(trailingOnly = TRUE)
 setup <- try(r_session_setup(args), silent = TRUE)
-#library(inbolimsintern);args <- c("LWL8PRD", "11345", "PIETERVS");setup <- try(r_session_setup(args))
+#library(inbolimsintern);args <- c("LWL8PRD", "11737", "PIETERVS");setup <- try(r_session_setup(args))
 
 #log_message(paste("Arguments:", paste(args, collapse = ", ")))
 if (inherits(setup, "try-error")) {

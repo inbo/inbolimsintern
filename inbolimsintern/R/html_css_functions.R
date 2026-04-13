@@ -3,8 +3,8 @@
 #' 
 #' @export
 get_labware_assets <- function() {
-  css_path <- system.file("css", "inbo_labware_styles.css", package = "inbolimsintern")
-  logo_path <- system.file("images", "inbo-logo.svg", package = "inbolimsintern")
+  css_path <- system.file("report_templates", "css", "inbo_labware_styles.css", package = "inbolimsintern")
+  logo_path <- system.file("report_templates", "images", "inbo-logo.svg", package = "inbolimsintern")
   
   css_txt <- if(file.exists(css_path)) paste(readLines(css_path, warn = FALSE), collapse = "\n") else ""
   logo_64 <- if(file.exists(logo_path)) paste0("data:image/png;base64,", base64enc::base64encode(logo_path)) else ""
