@@ -1,4 +1,5 @@
 library(plumber)
+library(inbolimsintern)
 
 # Force load the logic into the Global Environment
 source("D:\LWL8PRD\Data\R_SCRIPTS\plumber_logic_functions.R", local = FALSE)
@@ -14,6 +15,15 @@ function() { list(status = "alive", time = Sys.time()) }
 #* @get /multiply
 function(a = 1, b = 1) {
   multiply_logic(a, b)
+}
+
+#* @get /testdb
+function(a = 1, b = 1) {
+  multiply_logic(a, b)
+  if (!DBI::dbIsValid(global_conn)) {
+    global_conn <<- inbolimsintern::limsdb_connect(env = "PRD")
+  }
+  global_conn
 }
 
 

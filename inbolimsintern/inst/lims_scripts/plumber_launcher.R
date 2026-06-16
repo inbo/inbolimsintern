@@ -7,5 +7,5 @@ library(inbolimsintern)
 readRenviron("D:/LWL8PRD/Data/WORKDIR/.Renviron")
 global_conn <<- limsdb_connect(env = "PRD") # Note the <<- for global scope
 
-pr <- plumb("D:/GIT/RSERVER/plumber.R")
+pr <- plumb("D:/LWL8PRD/Data/R_SCRIPTS/plumber.R")
 pr$run(host = "0.0.0.0", port = 8000) 
