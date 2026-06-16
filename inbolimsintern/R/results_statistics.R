@@ -6,7 +6,7 @@
 #' @returns a csv and png file
 #' @export
 #'
-results_statistics <- function(path, basename) {
+results_statistics <- function(conn, path, basename) {
   require(dplyr)
   require(ggplot2)
   # Call the named function from plumber_logic_functions.R
@@ -15,7 +15,7 @@ results_statistics <- function(path, basename) {
   outfig =  paste0(file.path(path, basename), ".png")
   
   qry = paste(readLines(sqlfile), collapse = "\n")
-  data <- DBI::dbGetQuery(global_conn, qry) |> 
+  data <- DBI::dbGetQuery(conn, qry) |> 
     mutate(ENTRY = as.numeric(ENTRY))
   
   summary_df <- data %>%

@@ -1,11 +1,32 @@
-library(plumber)
-library(inbolimsintern)
-#library(future)
 
-#plan(multisession, workers = parallel::detectCores() - 2)
+# plumber_launcher2.R
 
-readRenviron("D:/LWL8PRD/Data/WORKDIR/.Renviron")
-global_conn <<- limsdb_connect(env = "PRD") # Note the <<- for global scope
+# Create a text file to capture the exact crash reason
+log_file <- file("D:/LWL8PRD/Data/R_SCRIPTS/api_crash_log.txt", open = "wt")
+sink(log_file, type = "output")
+sink(log_file, type = "message")
 
-pr <- plumb("D:/LWL8PRD/Data/R_SCRIPTS/plumber.R")
-pr$run(host = "0.0.0.0", port = 8000) 
+cat("--- Starting API Session at", as.character(Sys.time()), "---\n")
+
+tryCatch({
+  library(plumber)
+  library(inbolimsintern)
+  
+  readRenviron("D:/LWL8PRD/Data/WORKDIR/.Renviron")
+  global_conn <<- limsdb_connect(env = "PRD") # Note the <<- for global scope
+  
+  
+  # Point this exactly to your plumber script path
+  pr <- pr("D:/LWL8PRD/Data/R_SCRIPTS/plumber.R") 
+  
+  # Run the API
+  pr_run(pr, port = 8000, host = "0.0.0.0")
+  
+}, error = function(e) {
+  cat("FATAL ERROR OCCURRED:\n")
+  print(e)
+})
+
+# Close the logs if it stops
+sink(type = "message")
+sink(type = "output")
