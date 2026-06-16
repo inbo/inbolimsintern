@@ -67,6 +67,9 @@ run_chart_query <- function(params, index = 1) {
 #'
 get_run_chart_data <- function(conn, qry) {
   plotdata <- DBI::dbGetQuery(conn, qry)
+  plotdata <- plotdata |> 
+    mutate(ENTRY = stringr::str_replace(ENTRY, ",", "."))
+  
 
   #zet C_ORIG_DUP_NUMBER op waarde indien 0
   plotdata <- plotdata %>%

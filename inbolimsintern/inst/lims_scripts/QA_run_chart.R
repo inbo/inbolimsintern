@@ -9,7 +9,7 @@ library(tidyverse)
 library(inbolimsintern)
 library(readxl)
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
-#args <- c("LWL8DEV", "9794", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#args <- c("LWL8PRD", "11782", "RUN_CHART"); setup <- try(r_session_setup(args))
 invisible(list2env(setup, envir = .GlobalEnv))
 
 if (inherits(setup, "try-error")) {
