@@ -10,6 +10,7 @@ library(tidyverse)
 library(inbolimsintern)
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
 #args <- c("LWL8DEV", "10020", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#args <- c("LWL8PRD", "12291", "PIETERVS"); setup <- try(r_session_setup(args))
 invisible(list2env(setup, envir = .GlobalEnv))
 
 if (inherits(setup, "try-error")) {
@@ -50,7 +51,7 @@ e <- try({
   alldata <- get_ELC_data(conn, sqlfile, keep = Inf) %>%
     filter(C_CTR_ADD == 'T') %>%
     mutate(CALL_ID = call_id)  #voeg callID toe
-}, outFile = logfile)
+})
 if(inherits(e, "try-error")) {
   write_db_log(paste("data kon niet ingelezen worden:", e), "E")
   stop(e)

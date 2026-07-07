@@ -4,7 +4,7 @@
 \alias{results_statistics}
 \title{Make a csv and histograms about data statistics}
 \usage{
-results_statistics(path, basename)
+results_statistics(conn, path, basename)
 }
 \arguments{
 \item{path}{directory to store file in}

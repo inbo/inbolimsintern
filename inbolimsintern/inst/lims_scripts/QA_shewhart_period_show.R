@@ -3,6 +3,8 @@
 #Show existing QC period charts
 ##################################
 
+#call from labware: \\Inbo-limsbg-prd-labware8.inbo.be\LWL8PRD_Data\R_SCRIPTS\QA_shewhart_period_show.R LWL8PRD 12288 PIETERVS
+
 #// setup environment
 ##=====================
 
@@ -42,7 +44,7 @@ if (inherits(e, "try-error")){
 ##=================
 
 message(kaartlabel)
-cat(kaartlabel, file = "d:\\pieter\\log.log", append = TRUE)
+#cat(kaartlabel, file = "d:\\pieter\\log.log", append = TRUE)
 e <- try({
   sqlcode <- paste0("select * from C_CTR_ARCHIVE where LABEL = '", kaartlabel, "'")
   dbdata <- DBI::dbGetQuery(conn, sqlcode) %>%
