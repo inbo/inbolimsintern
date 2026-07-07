@@ -74,7 +74,7 @@ write_db_log("Parameters retrieved", "P")
 ##================
 
 #log_message("Importing data from database...")
-write_db_log("Starting data import", "P")
+write_db_log("Importing data ...", "P")
 
 start_time <- Sys.time()
 # e <- try(alldata <- get_ELC_data(conn, sqlfile, keep = maxpoints), silent = TRUE)
@@ -113,7 +113,7 @@ combis <- alldata |>
 ##==================
 
 #log_message("Creating plot widgets...")
-write_db_log("Starting widget creation", "P")
+write_db_log("creating widgets ...", "P")
 
 plot_widgets <- vector("list", nrow(combis))
 names(plot_widgets) <- combis$combi
@@ -123,7 +123,7 @@ start_time <- Sys.time()
 for (i in seq_len(nrow(combis))) {
   comb <- combis$combi[i]
   #log_message(paste("  Processing widget", i, "of", nrow(combis), ":", comb))
-  write_db_log(paste("start creating widget", comb), "P")
+  write_db_log(paste("Creating widget for: ", comb), "P")
   cat(comb, "\n")
   tryCatch({
     # Prepare subtitle
@@ -136,7 +136,6 @@ for (i in seq_len(nrow(combis))) {
     )
     
     # Filter and process data
-    write_db_log("before filter combi", "P")
     plotdata <- alldata |> dplyr::filter(combi == comb)
     write_db_log("before elc htmldata", "P")
     htmldata <- elc_htmldata(plotdata)
