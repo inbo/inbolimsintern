@@ -10,7 +10,7 @@ library(tidyverse)
 library(inbolimsintern)
 args <- commandArgs(trailingOnly = TRUE); setup <- try(r_session_setup(args))
 #args <- c("LWL8DEV", "10020", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
-#args <- c("LWL8PRD", "12291", "PIETERVS"); setup <- try(r_session_setup(args))
+#args <- c("LWL8PRD", "12298", "PIETERVS"); setup <- try(r_session_setup(args))
 invisible(list2env(setup, envir = .GlobalEnv))
 
 if (inherits(setup, "try-error")) {
@@ -50,7 +50,8 @@ if (inherits(e, "try-error")) {
 e <- try({
   alldata <- get_ELC_data(conn, sqlfile, keep = Inf) %>%
     filter(C_CTR_ADD == 'T') %>%
-    mutate(CALL_ID = call_id)  #voeg callID toe
+    mutate(CALL_ID = call_id) |>  #voeg callID toe
+    mutate(ENTRY = stringr::str_replace(ENTRY, ",", "."))
 })
 if(inherits(e, "try-error")) {
   write_db_log(paste("data kon niet ingelezen worden:", e), "E")
@@ -83,7 +84,10 @@ archive_data_export <- archive_data %>%
   transmute(LABEL = label, DATE = datetime, USER = user,
             PRODUCT = product, LIMIT_VERSION = VERSION,
             SAMPLING_POINT = samplingpoint, SAMPLE_NAME,
-            BATCH, BATCHNR, CHECK_RULES,  ANALYSIS, NAME, ENTERED_ON, ENTRY, UNITS,
+            BATCH, BATCHNR, CHECK_RULES,  ANALYSIS, NAME, ENTERED_ON, 
+            #ENTRY = stringr::str_replace(ENTRY, ",", "."), 
+            ENTRY,
+            UNITS,
             C_CTR_X, C_CTR_SD, C_CERTIFIED_VALUE, C_CERTIFIED_SD,
             OUT3S, WARN, OUT2S, DRIFT, BIAS, COLOR, SIZE,
             LCL3S, LCL2S, LCL1S, UCL1S, UCL2S, UCL3S, COMBI = combi,
