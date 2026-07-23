@@ -81,6 +81,7 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
   write_db_log("start processing each plot", "P")
 
   for (i in seq_len(nrow(combis))) {
+    write_db_log(paste("start", combis$combi[i]), "P")
     lgf("starting", i)
     combdata <- combis |> dplyr::slice(i)
     comb <- combis$combi[i]
@@ -93,6 +94,7 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
     htmldata <- elc_htmldata(plotdata)
     lgf("aantal rijen htmldata:", nrow(htmldata$plot))
     
+    
     lgf("start creating graph")
     
     # 1. Force static ggplot (interactive = FALSE)
@@ -103,6 +105,8 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
       fig_height = fig_height * 100 # Adjust if your internal function expects pixels
     )
     lgf("fig made")
+    write_db_log("fig made", "P")
+    
     
     # 2. Convert ggplot directly to Base64 in-memory (No disk I/O = Blazing Fast)
     tf <- tempfile(fileext = ".png")
@@ -110,22 +114,29 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
     img_base64 <- knitr::image_uri(tf)
     file.remove(tf) # instant temp file cleanup
     
+    lgf("start saving in htmlobjects list\n")
+    write_db_log("saving in html object list", "P")
     # 3. Cache structural properties
     htmlobjects[[i]]$id <- my_id
     htmlobjects[[i]]$comp <- combdata$comp
     htmlobjects[[i]]$qc <- combdata$qc
     htmlobjects[[i]]$ana <- combdata$ana
     htmlobjects[[i]]$img_base64 <- img_base64
+    lgf("fihished loop", i, "\n")
+    write_db_log(paste("Finished processing", my_id), "P")
   }
   
   write_db_log("Finished creating graphs, starting generating html", "P")
   
   rv$num_objects <- length(htmlobjects)
   lgf("loop finished: ", rv$num_objects, " plots made")
+  write_db_log(paste("loop finished: ", rv$num_objects, " plots made"), "P")
   
   # 4. Generate the pure-CSS sidebar navigation links
   
   lgf("start creating nav_links")
+  write_db_log("start creating nav_links", "P")
+  
   nav_links <- lapply(htmlobjects, function(obj) {
     tags$a(
       href = paste0("#", obj$id), 
@@ -142,6 +153,7 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
   
   # 5. Build content sections using your exact H1, H2, H3 hierarchy
   lgf("start creating content_sections")
+  write_db_log("start creating content_sections", "P")
   content_sections <- lapply(htmlobjects, function(obj) {
     tags$div(
       id = obj$id,
@@ -160,6 +172,7 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
   })
   
   lgf("start creating main content")
+  write_db_log("start creating main content", "P")
   main_content <- tags$div(
     class = "main-content",
     content_sections
@@ -167,6 +180,7 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
   
   # 6. Apply pure-CSS styling layout
   lgf("start creating css styles")
+  write_db_log("start creating css styles", "P")
   css_styles <- tags$style(HTML("
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -219,6 +233,7 @@ plumber_qc_chart_simple <- function(env, call_id, user_name, sqlfile, htmlfile, 
   
   # 7. Assemble and Save
   lgf("start assembling html page")
+  write_db_log("start assembling html page", "P")
   html_page <- tags$html(
     tags$head(
       tags$title("QC Shewhart Dashboard"),
