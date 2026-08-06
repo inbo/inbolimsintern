@@ -52,9 +52,15 @@ function(env = "PRD", call_id = 0, user_name = "",
 
 #* @get /file_grabber
 #* @serializer text
-function( env, scheduler_path = "") {
-  # Call the named function from plumber_logic_functions.R
-  batch_file_grabber(env, scheduler_path)
+function(env = "PRD", call_id = 0, user_name = "", scheduler_path = NULL) {
+  tryCatch({
+    if (is.null(scheduler_path) || scheduler_path == "") {
+      scheduler_path <- "\\\\Inbo-limsbg-prd-labware8.inbo.be\\LABO_FS_PRD\\ANA\\_SCHEDULER"
+    }
+    plumber_batch_file_grabber(env = env, call_id = call_id, user_name = user_name, scheduler_path = scheduler_path)
+  }, error = function(e) {
+    paste("Plumber Endpoint Error:", e$message)
+  })
 }
 
 

@@ -8,7 +8,8 @@
 #'
 check_health <- function() {
   require("inbolimsintern")
-  status <- "alive"
+  pkgv <- utils::packageVersion("inbolimsintern")
+  status <- paste("alive, inbolimsintern version", pkgv)
   time <- Sys.time()
   list(status = status, time = time) 
 }
