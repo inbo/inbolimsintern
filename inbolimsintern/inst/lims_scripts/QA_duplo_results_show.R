@@ -11,7 +11,7 @@ library(inbolimsintern)
 digits <- 5
 args <- commandArgs(trailingOnly = TRUE)
 setup <- try(r_session_setup(args))
-#args <- c("LWL8DEV", "10045", "TEST_INT"); setup <- try(r_session_setup(args, test_mode = TRUE))
+#args <- c("LWL8PRD", "13043", "PIETERVS"); setup <- try(r_session_setup(args))
 invisible(list2env(setup, envir = .GlobalEnv))
 
 if (inherits(setup, "try-error")) {
@@ -107,7 +107,7 @@ if (length(project)) {
     "  analysis = r.ANALYSIS, ", "\n",
     "  name = r.NAME, ", "\n",
     "  value = r.NUMERIC_ENTRY, ", "\n",
-    "  unit = r.UNITS, ", "\n",
+    "  unit = u.DISPLAY_STRING, ", "\n",
     "  date = r.ENTERED_ON, ", "\n",
     "  repli = t.REPLICATE_COUNT, ", "\n",
     "  dupident = r.ANALYSIS + '_' + r.NAME + '_' + CAST(t.REPLICATE_COUNT AS VARCHAR) + '_' + CAST(bp.link_id AS VARCHAR) ", "\n",
@@ -115,6 +115,7 @@ if (length(project)) {
     "INNER JOIN SAMPLE s ON (s.sample_number = bp.blind_sn OR s.sample_number = bp.orig_sn) ", "\n",
     "INNER JOIN TEST t   ON t.sample_number = s.sample_number ", "\n",
     "INNER JOIN RESULT r ON r.test_number = t.test_number ", "\n",
+    "INNER JOIN UNITS u on r.UNITS = u.UNIT_CODE", "\n",
     "WHERE r.REPORTABLE = 'T' ", "\n",
     "  AND r.NUMERIC_ENTRY IS NOT NULL ", "\n",
     "  AND r.STATUS IN ('E', 'M', 'A') ", "\n",
@@ -141,46 +142,6 @@ if (length(project)) {
     write_db_log(paste("data records:", nrow(df_all)), "P")
   }
 }
-
-#OLD
-#
-# #Volledige duplo analyse
-# #------------------------
-# qry <- paste0(
-# "select project = s.PROJECT, matrix = s.C_SAMPLE_MATRIX, product_grade = s.PRODUCT_GRADE, dupnr = s.C_ORIG_DUP_NUMBER ", "\n",
-# ", sampletype = s.SAMPLE_TYPE, textid = s.TEXT_ID, blindparent = s.C_BLIND_PARENT", "\n",
-# ", analysis = r.ANALYSIS, name = r.NAME, value = r.NUMERIC_ENTRY, unit = r.UNITS", "\n",
-# ", date = r.ENTERED_ON, repli = t.REPLICATE_COUNT ", "\n",
-# " from result r, test t, sample s ", "\n",
-# " where r.TEST_NUMBER = t.TEST_NUMBER and t.SAMPLE_NUMBER = s.SAMPLE_NUMBER", "\n",
-# " and s.C_ORIG_DUP_NUMBER in (SELECT C_ORIG_DUP_NUMBER FROM SAMPLE s ", "\n",
-#                              " where sample_type = 'DUP' and status in ('C', 'A') ", "\n",
-#                              " and DATE_COMPLETED < '", lastdate, "' and DATE_COMPLETED >= '", firstdate, " ')", "\n",
-# " and r.REPORTABLE = 'T' and r.NUMERIC_ENTRY is not null ", "\n",
-# " and r.ENTERED_ON >= '", firstdate, "' and r.ENTERED_ON < '", lastdate, "'",
-# " and r.STATUS in ('E', 'M', 'A') and s.PRODUCT like '%" , lab, "'", "\n",
-# " and r.ENTRY_QUALIFIER is NULL",
-# " order by C_ORIG_DUP_NUMBER, ANALYSIS, NAME"
-# )
-#
-# e <- try({
-#   df_all <- dbGetQuery(conn, qry)
-#   df_all <- df_all %>%
-#     mutate(sampletype = ifelse(is.na(sampletype), "SAMP", sampletype),
-#            waarde_ruw = as.numeric(value))
-# })
-# if (inherits(e, "try-error") || is.null(nrow(e)) || nrow(e) == 0) {
-#   if (nrow(e) == 0) {
-#     msg = "Data bevat 0 rijen"
-#   } else {
-#     msg = "Probleem laden data"
-#   }
-#   write_db_log(paste(msg, e), "E")
-#   stop(e)
-# } else {
-#   write_db_log(paste("data records:", nrow(df_all)), "P")
-# }
-
 
 #// Process the data
 
@@ -256,6 +217,7 @@ df_pivot_incl_smry <- bind_rows(df_pivot, df_cvsd) %>%
             "Text-ID 1" = textid, "Datum 1" = date,
             "Text-ID 2" = textid_dup, "Datum 2" = date_dup,
             Project = project, Matrix = matrix, "Product grade" = product_grade,
+            unit = unit,
             "Meting 1" = meting, "Meting 2" = duplometing,
             "Gemiddelde (x)" = gemiddelde, "Ratio" = ratio,
             "Absoluut verschil" = afwijking,
